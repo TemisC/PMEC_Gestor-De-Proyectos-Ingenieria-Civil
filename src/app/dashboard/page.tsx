@@ -5,8 +5,11 @@ import { logout } from "./actions";
 
 // Etapa 1 (esqueleto caminante): página protegida mínima, solo para
 // probar que login + lectura de datos vía Prisma funcionan de punta a
-// punta. El dashboard real (roles, horas, KPIs) llega en etapas
-// posteriores (plan_maestro.md, sección 11).
+// punta. El dashboard real por rol (Gerencia ve todo, Colaborador solo
+// sus proyectos asignados, carga de horas) llega en la Etapa 3/4
+// (plan_maestro.md, sección 11) — acá solo se ajustó el nombre del
+// campo (`ownerId` → `managerId`) para que siga compilando tras el
+// modelo de datos de la Etapa 2.
 export default async function DashboardPage() {
   const session = await auth();
 
@@ -21,7 +24,7 @@ export default async function DashboardPage() {
   }
 
   const projects = await prisma.project.findMany({
-    where: { ownerId: userId },
+    where: { managerId: userId },
     orderBy: { createdAt: "desc" },
   });
 

@@ -10,27 +10,75 @@ datasource db {
   provider = "postgresql"
 }
 
-// Etapa 1 (esqueleto caminante): modelo mínimo, solo para probar que
-// Prisma + Postgres (Supabase) + login funcionan de punta a punta. El
-// modelo completo del MVP (roles Gerencia/Gestor/Colaborador, TimeEntry)
-// se agrega en la Etapa 2 (plan_maestro.md, sección 11).
+// Etapa 2 (modelo de datos del MVP — plan_maestro.md sección 0.1/11):
+// los 3 roles del MVP, Proyectos con gestor + colaboradores asignados, y
+// TimeEntry (carga de horas). Todavía sin previsiones/facturas/clientes
+// como entidad separada — eso es alcance post-MVP (sección 4 completa).
+enum Role {
+  GERENCIA
+  GESTOR
+  COLABORADOR
+}
+
 model User {
   id       String  @id @default(cuid())
   email    String  @unique
   name     String?
   password String
+  role     Role    @default(COLABORADOR)
 
-  projects Project[]
+  // Proyectos donde este usuario es el Gestor responsable.
+  managedProjects Project[]       @relation("ProjectManager")
+  // Proyectos donde este usuario es Colaborador asignado (carga horas).
+  assignments     ProjectMember[]
+  timeEntries     TimeEntry[]
 
   createdAt DateTime @default(now())
 }
 
 model Project {
-  id   String @id @default(cuid())
-  name String
+  id     String  @id @default(cuid())
+  name   String
+  // Texto libre por ahora (sección 0.1 del plan) — se vuelve una entidad
+  // Client real recién en el alcance completo post-MVP (sección 4).
+  client String?
 
-  ownerId String
-  owner   User   @relation(fields: [ownerId], references: [id])
+  managerId String
+  manager   User   @relation("ProjectManager", fields: [managerId], references: [id])
+
+  members     ProjectMember[]
+  timeEntries TimeEntry[]
+
+  createdAt DateTime @default(now())
+}
+
+// Asignación de un Colaborador a un Proyecto — de acá sale el chequeo de
+// autorización de la Etapa 3 ("un Colaborador solo ve los proyectos
+// donde está asignado").
+model ProjectMember {
+  id String @id @default(cuid())
+
+  userId    String
+  projectId String
+  user      User    @relation(fields: [userId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+}
+
+// Carga de horas — la funcionalidad núcleo del MVP (sección 0.1).
+model TimeEntry {
+  id          String   @id @default(cuid())
+  date        DateTime
+  hours       Float
+  description String?
+
+  userId    String
+  projectId String
+  user      User    @relation(fields: [userId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
 
   createdAt DateTime @default(now())
 }
