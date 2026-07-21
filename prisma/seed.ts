@@ -1,3 +1,7 @@
+// A diferencia de Next.js (que carga .env automáticamente), `tsx` no lo
+// hace — sin esto, DATABASE_URL llega undefined y `pg` cae a localhost
+// por default (ECONNREFUSED silencioso, no un error de credenciales).
+import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma";
 

@@ -9,6 +9,11 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Comandos de CLI (migrate/introspect) necesitan la conexión directa,
+    // sin el pooler en modo transaction (Supabase + Prisma: el pooler de
+    // 6543/pgbouncer no soporta algunos comandos DDL que usan las
+    // migraciones). El runtime de la app sigue usando DATABASE_URL
+    // (pooled) — ver src/lib/prisma.ts.
+    url: process.env["DIRECT_URL"],
   },
 });

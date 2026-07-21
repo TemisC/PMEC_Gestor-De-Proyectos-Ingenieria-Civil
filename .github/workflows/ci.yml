@@ -8,8 +8,27 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Postgres efímero solo para este job — nunca se corren migraciones de
+    # CI contra la base real de Supabase (plan_maestro.md, sección 5.2:
+    # separación de credenciales/entornos).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pmec_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      DATABASE_URL: "file:./dev.db"
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/pmec_ci"
+      DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/pmec_ci"
+      DATABASE_SSL: "false"
       AUTH_SECRET: "ci-only-secret-not-used-in-production"
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +51,7 @@ jobs:
       - name: Dependency audit (gate bloqueante en vulnerabilidades altas/críticas)
         run: npm audit --audit-level=high
 
-      - name: Prisma migrate (SQLite de CI)
+      - name: Prisma migrate (Postgres efímero de CI)
         run: npx prisma migrate deploy
 
       - name: Build
