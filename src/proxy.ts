@@ -10,7 +10,17 @@ import { getToken } from "next-auth/jwt";
 // es defensa en profundidad de todos modos: el guard real que nunca se
 // salta es el de cada página (ver src/app/dashboard/page.tsx).
 export default async function proxy(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  // `getToken` necesita saber explícitamente si la cookie es la variante
+  // `__Secure-*` (HTTPS) o no — su autodetección no funcionó de forma
+  // confiable en el runtime `proxy` de Vercel (login exitoso, cookie
+  // enviada correctamente, pero el token no se encontraba). Se decide
+  // por el protocolo real de la request, no por NODE_ENV.
+  const secureCookie = req.nextUrl.protocol === "https:";
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+    secureCookie,
+  });
   const isOnDashboard = req.nextUrl.pathname.startsWith("/dashboard");
 
   if (isOnDashboard && !token) {
