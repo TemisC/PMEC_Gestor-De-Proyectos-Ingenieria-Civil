@@ -1,39 +1,54 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { Role } from "@/generated/prisma/enums";
 import { logout } from "./actions";
 
-// Etapa 1 (esqueleto caminante): página protegida mínima, solo para
-// probar que login + lectura de datos vía Prisma funcionan de punta a
-// punta. El dashboard real por rol (Gerencia ve todo, Colaborador solo
-// sus proyectos asignados, carga de horas) llega en la Etapa 3/4
-// (plan_maestro.md, sección 11) — acá solo se ajustó el nombre del
-// campo (`ownerId` → `managerId`) para que siga compilando tras el
-// modelo de datos de la Etapa 2.
+// Etapa 4 (plan_maestro.md, sección 11): dashboard real por rol —
+// Gerencia ve todos los proyectos, Gestor los suyos, Colaborador solo
+// los que tiene asignados. El detalle de cada proyecto (miembros, carga
+// de horas) vive en /projects/[id].
 export default async function DashboardPage() {
   const session = await auth();
 
   // Defensa en profundidad: no depender solo del proxy (src/proxy.ts)
   // para el gate de autenticación. Si `auth()` falla o devuelve null por
   // cualquier motivo, esta página debe fallar cerrado (redirigir), nunca
-  // fail-open. Además, nunca pasar `undefined` a un filtro de Prisma: es
-  // "sin filtro" (matchea todo), no "sin resultados".
+  // fail-open.
   const userId = session?.user?.id;
   if (!userId) {
     redirect("/login");
   }
+  const role = session.user.role;
 
   const projects = await prisma.project.findMany({
-    where: { managerId: userId },
+    where:
+      role === Role.GERENCIA
+        ? undefined // Gerencia ve todos los proyectos — acá sí es intencional, no un bug.
+        : role === Role.GESTOR
+          ? { managerId: userId }
+          : { members: { some: { userId } } },
+    include: { manager: true },
     orderBy: { createdAt: "desc" },
   });
+
+  const roleLabel =
+    role === Role.GERENCIA
+      ? "Gerencia"
+      : role === Role.GESTOR
+        ? "Gestor de Proyectos"
+        : "Colaborador";
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">
-          Hola, {session?.user?.name ?? session?.user?.email}
-        </h1>
+        <div>
+          <h1 className="text-xl font-semibold">
+            Hola, {session.user.name ?? session.user.email}
+          </h1>
+          <p className="text-xs text-gray-500">{roleLabel}</p>
+        </div>
         <form action={logout}>
           <button
             type="submit"
@@ -44,22 +59,41 @@ export default async function DashboardPage() {
         </form>
       </div>
 
-      <section>
-        <h2 className="mb-2 text-sm font-medium text-gray-500">
-          Tus proyectos ({projects.length})
-        </h2>
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-gray-500">
+            {role === Role.GERENCIA ? "Todos los proyectos" : "Tus proyectos"} (
+            {projects.length})
+          </h2>
+          {role === Role.GESTOR && (
+            <Link
+              href="/projects/new"
+              className="text-xs text-gray-900 underline"
+            >
+              + Nuevo proyecto
+            </Link>
+          )}
+        </div>
         {projects.length === 0 ? (
           <p className="text-sm text-gray-500">
-            Todavía no tenés proyectos cargados.
+            Todavía no hay proyectos para mostrar.
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
             {projects.map((project) => (
-              <li
-                key={project.id}
-                className="rounded-md border border-gray-200 px-4 py-2 text-sm"
-              >
-                {project.name}
+              <li key={project.id}>
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="block rounded-md border border-gray-200 px-4 py-2 text-sm hover:border-gray-400"
+                >
+                  <span className="font-medium">{project.name}</span>
+                  {role === Role.GERENCIA && (
+                    <span className="text-gray-500">
+                      {" "}
+                      — Gestor: {project.manager.name ?? project.manager.email}
+                    </span>
+                  )}
+                </Link>
               </li>
             ))}
           </ul>
