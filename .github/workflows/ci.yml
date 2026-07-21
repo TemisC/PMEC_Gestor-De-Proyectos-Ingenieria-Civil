@@ -54,5 +54,12 @@ jobs:
       - name: Prisma migrate (Postgres efímero de CI)
         run: npx prisma migrate deploy
 
+      # Gate bloqueante (Etapa 3 — plan_maestro.md sección 11): si un test
+      # de autorización falla ("un Gestor no puede ver el proyecto de
+      # otro", etc.), el build no pasa. No son tests contra la UI, son
+      # contra las políticas puras de src/lib/authorization.ts.
+      - name: Tests de autorización
+        run: npm run test
+
       - name: Build
         run: npm run build

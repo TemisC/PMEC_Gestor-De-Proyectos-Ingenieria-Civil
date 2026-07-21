@@ -3,11 +3,12 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import type { Role } from "@/generated/prisma/enums";
 
-// Etapa 1 (login básico): sesión por JWT, credenciales propias contra la
-// tabla User (password hasheado con bcrypt). El RBAC real de los 3 roles
-// del MVP (Gerencia/Gestor/Colaborador) se implementa en la Etapa 3 —
-// esto solo prueba que el circuito de login funciona de punta a punta.
+// Sesión por JWT, credenciales propias contra la tabla User (password
+// hasheado con bcrypt). Etapa 3: el `role` viaja en la sesión para que
+// las políticas de autorización (src/lib/authorization.ts) puedan
+// decidir sin otra consulta a la base.
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -31,11 +32,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // JWT bien, pero la página igual redirigía a /login porque el id
     // llegaba undefined).
     jwt({ token, user }) {
-      if (user) token.id = user.id;
+      // Mismo problema que con `id`: cualquier dato nuevo que haga falta
+      // en `session.user` (Etapa 3: `role`, para RBAC) tiene que agregarse
+      // explícitamente acá, no alcanza con devolverlo desde `authorize()`.
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+      }
       return token;
     },
     session({ session, token }) {
-      if (session.user) session.user.id = token.id as string;
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as Role;
+      }
       return session;
     },
   },
@@ -56,7 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const passwordMatches = await bcrypt.compare(password, user.password);
         if (!passwordMatches) return null;
 
-        return { id: user.id, email: user.email, name: user.name };
+        return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
   ],
