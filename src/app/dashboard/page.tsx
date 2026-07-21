@@ -3,12 +3,19 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/generated/prisma/enums";
+import {
+  calculateInternalCost,
+  calculateProfit,
+  calculateProfitPercentage,
+  calculateTotalBudget,
+  isMarginAtRisk,
+} from "@/lib/financials";
 import { logout } from "./actions";
 
-// Etapa 4 (plan_maestro.md, sección 11): dashboard real por rol —
-// Gerencia ve todos los proyectos, Gestor los suyos, Colaborador solo
-// los que tiene asignados. El detalle de cada proyecto (miembros, carga
-// de horas) vive en /projects/[id].
+// Dashboard real por rol — Gerencia ve todos los proyectos (con
+// rentabilidad, que es lo que le interesa para decidir), Gestor los
+// suyos, Colaborador solo los que tiene asignados (sin nada
+// financiero). El detalle de cada proyecto vive en /projects/[id].
 export default async function DashboardPage() {
   const session = await auth();
 
@@ -21,6 +28,7 @@ export default async function DashboardPage() {
     redirect("/login");
   }
   const role = session.user.role;
+  const canSeeFinancials = role === Role.GERENCIA || role === Role.GESTOR;
 
   const projects = await prisma.project.findMany({
     where:
@@ -29,7 +37,14 @@ export default async function DashboardPage() {
         : role === Role.GESTOR
           ? { managerId: userId }
           : { members: { some: { userId } } },
-    include: { manager: true },
+    include: {
+      manager: true,
+      agreement: true,
+      additionals: true,
+      invoices: true,
+      timeEntries: true,
+      members: { include: { user: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -39,6 +54,27 @@ export default async function DashboardPage() {
       : role === Role.GESTOR
         ? "Gestor de Proyectos"
         : "Colaborador";
+
+  const projectsWithProfitability = projects.map((project) => {
+    if (!canSeeFinancials) return { project, profitability: null };
+
+    const totalBudget = calculateTotalBudget(
+      project.agreement?.amount,
+      project.additionals,
+    );
+    const rateByUserId = new Map(
+      project.members.map((m) => [
+        m.userId,
+        m.hourlyRate ?? m.user.defaultHourlyRate ?? 0,
+      ]),
+    );
+    const internalCost = calculateInternalCost(project.timeEntries, rateByUserId);
+    const profit = calculateProfit(totalBudget, internalCost);
+    const profitPercentage = calculateProfitPercentage(profit, totalBudget);
+    const atRisk = isMarginAtRisk(profitPercentage);
+
+    return { project, profitability: { totalBudget, profitPercentage, atRisk } };
+  });
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
@@ -80,17 +116,31 @@ export default async function DashboardPage() {
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {projects.map((project) => (
+            {projectsWithProfitability.map(({ project, profitability }) => (
               <li key={project.id}>
                 <Link
                   href={`/projects/${project.id}`}
-                  className="block rounded-md border border-gray-200 px-4 py-2 text-sm hover:border-gray-400"
+                  className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-2 text-sm hover:border-gray-400"
                 >
-                  <span className="font-medium">{project.name}</span>
-                  {role === Role.GERENCIA && (
-                    <span className="text-gray-500">
-                      {" "}
-                      — Gestor: {project.manager.name ?? project.manager.email}
+                  <span>
+                    <span className="font-medium">{project.name}</span>
+                    {role === Role.GERENCIA && (
+                      <span className="text-gray-500">
+                        {" "}
+                        — Gestor: {project.manager.name ?? project.manager.email}
+                      </span>
+                    )}
+                  </span>
+                  {profitability && profitability.totalBudget > 0 && (
+                    <span
+                      className={
+                        profitability.atRisk
+                          ? "text-xs font-medium text-red-500"
+                          : "text-xs font-medium text-green-500"
+                      }
+                    >
+                      {profitability.profitPercentage.toFixed(0)}%{" "}
+                      {profitability.atRisk ? "⚠ en riesgo" : ""}
                     </span>
                   )}
                 </Link>

@@ -10,26 +10,37 @@ datasource db {
   provider = "postgresql"
 }
 
-// Etapa 2 (modelo de datos del MVP — plan_maestro.md sección 0.1/11):
-// los 3 roles del MVP, Proyectos con gestor + colaboradores asignados, y
-// TimeEntry (carga de horas). Todavía sin previsiones/facturas/clientes
-// como entidad separada — eso es alcance post-MVP (sección 4 completa).
+// Ampliación post-MVP anticipada (2026-07-21): el MVP mínimo (solo
+// User/Project/TimeEntry) no alcanzaba para demostrarle a Deltana lo que
+// más le importa a Gerencia — previsión de cobro y rentabilidad. Se
+// adelanta acá la lógica financiera básica (Etapas 5/6 del plan),
+// portando fielmente el modelo del SPA original (types.ts: Agreement,
+// Additional, PlannedInvoice, Invoice) — ver plan_maestro.md para la
+// nota completa sobre este cambio de secuencia y el riesgo aceptado
+// (Etapa 0 — validación con el dueño de la lógica — sigue pendiente).
 enum Role {
   GERENCIA
   GESTOR
   COLABORADOR
 }
 
-model User {
-  id       String  @id @default(cuid())
-  email    String  @unique
-  name     String?
-  password String
-  role     Role    @default(COLABORADOR)
+enum InvoiceSource {
+  AGREEMENT
+  ADDITIONAL
+}
 
-  // Proyectos donde este usuario es el Gestor responsable.
+model User {
+  id                String  @id @default(cuid())
+  email             String  @unique
+  name              String?
+  password          String
+  role              Role    @default(COLABORADOR)
+  // Tarifa hora por defecto (coste interno) — el ProjectMember.hourlyRate
+  // la puede sobreescribir por proyecto, igual que el SPA original
+  // (internalRates global + override por proyecto en internalCostInfo).
+  defaultHourlyRate Float?
+
   managedProjects Project[]       @relation("ProjectManager")
-  // Proyectos donde este usuario es Colaborador asignado (carga horas).
   assignments     ProjectMember[]
   timeEntries     TimeEntry[]
 
@@ -39,22 +50,21 @@ model User {
 model Project {
   id     String  @id @default(cuid())
   name   String
-  // Texto libre por ahora (sección 0.1 del plan) — se vuelve una entidad
-  // Client real recién en el alcance completo post-MVP (sección 4).
   client String?
 
   managerId String
   manager   User   @relation("ProjectManager", fields: [managerId], references: [id])
 
-  members     ProjectMember[]
-  timeEntries TimeEntry[]
+  members         ProjectMember[]
+  timeEntries     TimeEntry[]
+  agreement       ProjectAgreement?
+  additionals     ProjectAdditional[]
+  plannedInvoices PlannedInvoice[]
+  invoices        Invoice[]
 
   createdAt DateTime @default(now())
 }
 
-// Asignación de un Colaborador a un Proyecto — de acá sale el chequeo de
-// autorización de la Etapa 3 ("un Colaborador solo ve los proyectos
-// donde está asignado").
 model ProjectMember {
   id String @id @default(cuid())
 
@@ -63,12 +73,15 @@ model ProjectMember {
   user      User    @relation(fields: [userId], references: [id])
   project   Project @relation(fields: [projectId], references: [id])
 
+  // Override de tarifa hora para este colaborador en este proyecto
+  // específico; si es null, se usa User.defaultHourlyRate.
+  hourlyRate Float?
+
   createdAt DateTime @default(now())
 
   @@unique([userId, projectId])
 }
 
-// Carga de horas — la funcionalidad núcleo del MVP (sección 0.1).
 model TimeEntry {
   id          String   @id @default(cuid())
   date        DateTime
@@ -79,6 +92,66 @@ model TimeEntry {
   projectId String
   user      User    @relation(fields: [userId], references: [id])
   project   Project @relation(fields: [projectId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// El acuerdo/contrato principal del proyecto (el "presupuesto base").
+// Uno solo por proyecto — de ahí sale la base de la previsión de cobro.
+model ProjectAgreement {
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id])
+
+  amount      Float
+  offerUrl    String?
+  contractUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Adicionales al acuerdo original (trabajo extra fuera del alcance base).
+model ProjectAdditional {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  description String
+  amount      Float
+  url         String?
+
+  createdAt DateTime @default(now())
+}
+
+// Previsión de facturación (cuándo se espera cobrar, no lo ya cobrado)
+// — la pieza central para que Gerencia vea rentabilidad ANTES de que el
+// proyecto cierre, que era el pedido de negocio original.
+model PlannedInvoice {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  description String
+  date        DateTime
+  amount      Float
+  source      InvoiceSource @default(AGREEMENT)
+  // Se marca true cuando se "promueve" a factura real emitida (Invoice).
+  invoiced    Boolean       @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+// Facturas ya emitidas (cobro real, no previsto).
+model Invoice {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  amount Float
+  date   DateTime
+  pdfUrl String?
+  source InvoiceSource @default(AGREEMENT)
 
   createdAt DateTime @default(now())
 }

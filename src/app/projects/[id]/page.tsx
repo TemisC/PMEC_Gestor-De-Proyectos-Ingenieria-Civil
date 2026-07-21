@@ -10,10 +10,21 @@ import {
   toAuthProject,
 } from "@/lib/authorization";
 import {
+  calculateInternalCost,
+  calculatePendingBilling,
+  calculatePendingPlanned,
+  calculateProfit,
+  calculateProfitPercentage,
+  calculateTotalBudget,
+  calculateTotalInvoiced,
+  isMarginAtRisk,
+} from "@/lib/financials";
+import {
   addProjectMember,
   logTimeEntry,
   removeProjectMember,
 } from "@/app/projects/actions";
+import { FinancialsSection } from "./financials-section";
 
 export default async function ProjectDetailPage({
   params,
@@ -34,6 +45,10 @@ export default async function ProjectDetailPage({
       manager: true,
       members: { include: { user: true } },
       timeEntries: { include: { user: true }, orderBy: { date: "desc" } },
+      agreement: true,
+      additionals: true,
+      plannedInvoices: { orderBy: { date: "asc" } },
+      invoices: { orderBy: { date: "desc" } },
     },
   });
 
@@ -46,6 +61,10 @@ export default async function ProjectDetailPage({
   const canManage = canManageProject(authUser, toAuthProject(project));
   const canLog = canLogTimeEntry(authUser, toAuthProject(project));
   const canSeeAllEntries = canViewAllTimeEntries(authUser, toAuthProject(project));
+  // Datos financieros: Gerencia los ve (solo lectura) además del Gestor
+  // dueño (edición) — un Colaborador nunca ve nada financiero (sección 2
+  // del plan: "no ve datos financieros ni proyectos ajenos").
+  const canSeeFinancials = session.user.role === Role.GERENCIA || canManage;
 
   const visibleTimeEntries = canSeeAllEntries
     ? project.timeEntries
@@ -61,6 +80,27 @@ export default async function ProjectDetailPage({
       })
     : [];
 
+  // Cálculo de rentabilidad — funciones puras de src/lib/financials.ts,
+  // portadas del SPA original y con tests propios (financials.test.ts).
+  const totalBudget = calculateTotalBudget(
+    project.agreement?.amount,
+    project.additionals,
+  );
+  const totalInvoiced = calculateTotalInvoiced(project.invoices);
+  const pendingBilling = calculatePendingBilling(totalBudget, totalInvoiced);
+  const pendingPlanned = calculatePendingPlanned(project.plannedInvoices);
+
+  const rateByUserId = new Map(
+    project.members.map((m) => [
+      m.userId,
+      m.hourlyRate ?? m.user.defaultHourlyRate ?? 0,
+    ]),
+  );
+  const internalCost = calculateInternalCost(project.timeEntries, rateByUserId);
+  const profit = calculateProfit(totalBudget, internalCost);
+  const profitPercentage = calculateProfitPercentage(profit, totalBudget);
+  const atRisk = isMarginAtRisk(profitPercentage);
+
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-8 p-6">
       <div>
@@ -73,6 +113,31 @@ export default async function ProjectDetailPage({
           {project.manager.name ?? project.manager.email}
         </p>
       </div>
+
+      {canSeeFinancials && (
+        <FinancialsSection
+          projectId={project.id}
+          canEdit={canManage}
+          agreement={project.agreement}
+          additionals={project.additionals}
+          plannedInvoices={project.plannedInvoices}
+          invoices={project.invoices}
+          members={project.members.map((m) => ({
+            userId: m.userId,
+            label: m.user.name ?? m.user.email,
+            hourlyRate: m.hourlyRate,
+            defaultRate: m.user.defaultHourlyRate,
+          }))}
+          totalBudget={totalBudget}
+          totalInvoiced={totalInvoiced}
+          pendingBilling={pendingBilling}
+          pendingPlanned={pendingPlanned}
+          internalCost={internalCost}
+          profit={profit}
+          profitPercentage={profitPercentage}
+          atRisk={atRisk}
+        />
+      )}
 
       {canManage && (
         <section className="flex flex-col gap-3">
