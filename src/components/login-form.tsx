@@ -10,9 +10,9 @@ export default function LoginForm() {
   );
 
   return (
-    <form action={formAction} className="flex w-full max-w-sm flex-col gap-4">
+    <form action={formAction} className="flex w-full flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="text-sm font-medium">
+        <label htmlFor="email" className="text-xs font-medium text-gray-400">
           Email
         </label>
         <input
@@ -21,11 +21,11 @@ export default function LoginForm() {
           type="email"
           required
           autoComplete="email"
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-500"
+          className="rounded-md border border-gray-700 bg-gray-900/60 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="password" className="text-sm font-medium">
+        <label htmlFor="password" className="text-xs font-medium text-gray-400">
           Contraseña
         </label>
         <input
@@ -34,12 +34,12 @@ export default function LoginForm() {
           type="password"
           required
           autoComplete="current-password"
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-500"
+          className="rounded-md border border-gray-700 bg-gray-900/60 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
         />
       </div>
 
       {errorMessage && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="text-sm text-red-400" role="alert">
           {errorMessage}
         </p>
       )}
@@ -47,7 +47,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-400 disabled:opacity-50"
       >
         {isPending ? "Ingresando..." : "Ingresar"}
       </button>

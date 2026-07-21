@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -23,7 +24,9 @@ import {
   addProjectMember,
   logTimeEntry,
   removeProjectMember,
-} from "@/app/projects/actions";
+} from "@/app/(app)/projects/actions";
+import { Card } from "@/components/ui/card";
+import { TrashIcon } from "@/components/ui/icons";
 import { FinancialsSection } from "./financials-section";
 
 export default async function ProjectDetailPage({
@@ -102,13 +105,13 @@ export default async function ProjectDetailPage({
   const atRisk = isMarginAtRisk(profitPercentage);
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-8 p-6">
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <div>
-        <a href="/dashboard" className="text-xs text-gray-500 underline">
+        <Link href="/dashboard" className="text-xs text-sky-400 hover:underline">
           ← Volver
-        </a>
-        <h1 className="text-xl font-semibold">{project.name}</h1>
-        <p className="text-sm text-gray-500">
+        </Link>
+        <h1 className="text-2xl font-bold text-white">{project.name}</h1>
+        <p className="text-sm text-gray-400">
           Cliente: {project.client ?? "—"} · Gestor:{" "}
           {project.manager.name ?? project.manager.email}
         </p>
@@ -140,8 +143,8 @@ export default async function ProjectDetailPage({
       )}
 
       {canManage && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-gray-500">
+        <Card className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
             Colaboradores asignados
           </h2>
           <ul className="flex flex-col gap-2">
@@ -153,7 +156,7 @@ export default async function ProjectDetailPage({
             {project.members.map((member) => (
               <li
                 key={member.id}
-                className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-3 py-2 text-sm text-white"
               >
                 <span>{member.user.name ?? member.user.email}</span>
                 <form action={removeProjectMember}>
@@ -161,9 +164,9 @@ export default async function ProjectDetailPage({
                   <input type="hidden" name="memberUserId" value={member.userId} />
                   <button
                     type="submit"
-                    className="text-xs text-red-600 underline"
+                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
                   >
-                    Quitar
+                    <TrashIcon className="h-3.5 w-3.5" /> Quitar
                   </button>
                 </form>
               </li>
@@ -171,19 +174,16 @@ export default async function ProjectDetailPage({
           </ul>
 
           {availableCollaborators.length > 0 && (
-            <form
-              action={addProjectMember}
-              className="flex items-end gap-2"
-            >
+            <form action={addProjectMember} className="flex items-end gap-2">
               <input type="hidden" name="projectId" value={project.id} />
               <div className="flex flex-1 flex-col gap-1">
-                <label htmlFor="memberUserId" className="text-xs text-gray-500">
+                <label htmlFor="memberUserId" className="text-xs text-gray-400">
                   Agregar colaborador
                 </label>
                 <select
                   id="memberUserId"
                   name="memberUserId"
-                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                  className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1.5 text-sm text-white"
                 >
                   {availableCollaborators.map((collaborator) => (
                     <option key={collaborator.id} value={collaborator.id}>
@@ -194,23 +194,25 @@ export default async function ProjectDetailPage({
               </div>
               <button
                 type="submit"
-                className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white"
+                className="rounded-md bg-sky-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-400"
               >
                 Agregar
               </button>
             </form>
           )}
-        </section>
+        </Card>
       )}
 
       {canLog && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-gray-500">Cargar horas</h2>
+        <Card className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+            Cargar horas
+          </h2>
           <form action={logTimeEntry} className="flex flex-col gap-3">
             <input type="hidden" name="projectId" value={project.id} />
             <div className="flex gap-3">
               <div className="flex flex-1 flex-col gap-1">
-                <label htmlFor="date" className="text-xs text-gray-500">
+                <label htmlFor="date" className="text-xs text-gray-400">
                   Fecha
                 </label>
                 <input
@@ -219,11 +221,11 @@ export default async function ProjectDetailPage({
                   type="date"
                   required
                   defaultValue={new Date().toISOString().slice(0, 10)}
-                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                  className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1.5 text-sm text-white"
                 />
               </div>
               <div className="flex w-24 flex-col gap-1">
-                <label htmlFor="hours" className="text-xs text-gray-500">
+                <label htmlFor="hours" className="text-xs text-gray-400">
                   Horas
                 </label>
                 <input
@@ -234,32 +236,32 @@ export default async function ProjectDetailPage({
                   min="0.5"
                   max="24"
                   required
-                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                  className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1.5 text-sm text-white"
                 />
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="description" className="text-xs text-gray-500">
+              <label htmlFor="description" className="text-xs text-gray-400">
                 Descripción (opcional)
               </label>
               <input
                 id="description"
                 name="description"
-                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1.5 text-sm text-white"
               />
             </div>
             <button
               type="submit"
-              className="self-start rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white"
+              className="self-start rounded-md bg-sky-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-400"
             >
               Cargar
             </button>
           </form>
-        </section>
+        </Card>
       )}
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-gray-500">
+      <Card className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
           {canSeeAllEntries ? "Horas cargadas (todos)" : "Tus horas cargadas"} (
           {visibleTimeEntries.length})
         </h2>
@@ -270,23 +272,23 @@ export default async function ProjectDetailPage({
             {visibleTimeEntries.map((entry) => (
               <li
                 key={entry.id}
-                className="rounded-md border border-gray-200 px-3 py-2 text-sm"
+                className="rounded-md border border-gray-700 bg-gray-900/40 px-3 py-2 text-sm text-white"
               >
                 {entry.date.toISOString().slice(0, 10)} — {entry.hours}h
                 {canSeeAllEntries && (
-                  <span className="text-gray-500">
+                  <span className="text-gray-400">
                     {" "}
                     ({entry.user.name ?? entry.user.email})
                   </span>
                 )}
                 {entry.description && (
-                  <span className="text-gray-500"> — {entry.description}</span>
+                  <span className="text-gray-400"> — {entry.description}</span>
                 )}
               </li>
             ))}
           </ul>
         )}
-      </section>
-    </main>
+      </Card>
+    </div>
   );
 }

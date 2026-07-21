@@ -4,7 +4,9 @@ import {
   promotePlannedInvoice,
   setAgreement,
   setMemberRate,
-} from "@/app/projects/financial-actions";
+} from "@/app/(app)/projects/financial-actions";
+import { Card } from "@/components/ui/card";
+import { AlertIcon } from "@/components/ui/icons";
 
 type Money = number;
 
@@ -53,8 +55,10 @@ export function FinancialsSection(props: FinancialsSectionProps) {
   const { projectId, canEdit } = props;
 
   return (
-    <section className="flex flex-col gap-5 rounded-md border border-gray-700 p-4">
-      <h2 className="text-sm font-medium text-gray-500">Financiero</h2>
+    <Card className="flex flex-col gap-5">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+        Financiero
+      </h2>
 
       {/* Rentabilidad — lo que le interesa a Gerencia, visible siempre que se
           pueda ver esta sección (Gerencia lectura, Gestor dueño edición) */}
@@ -71,14 +75,15 @@ export function FinancialsSection(props: FinancialsSectionProps) {
         />
       </div>
       {props.atRisk && (
-        <p className="text-xs text-red-500">
-          ⚠ Margen por debajo del objetivo (50%) — proyecto en riesgo.
+        <p className="flex items-center gap-1.5 text-xs text-red-400">
+          <AlertIcon className="h-4 w-4" /> Margen por debajo del objetivo
+          (50%) — proyecto en riesgo.
         </p>
       )}
 
       {/* Acuerdo */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-medium text-gray-500">Acuerdo</h3>
+        <h3 className="text-xs font-medium text-gray-400">Acuerdo</h3>
         {props.agreement ? (
           <p className="text-sm">
             {money(props.agreement.amount)}
@@ -112,7 +117,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
             )}
           </p>
         ) : (
-          <p className="text-sm text-gray-500">Sin acuerdo cargado.</p>
+          <p className="text-sm text-gray-400">Sin acuerdo cargado.</p>
         )}
         {canEdit && (
           <form action={setAgreement} className="flex flex-wrap items-end gap-2">
@@ -127,7 +132,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
 
       {/* Adicionales */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-medium text-gray-500">
+        <h3 className="text-xs font-medium text-gray-400">
           Adicionales ({props.additionals.length})
         </h3>
         <ul className="flex flex-col gap-1">
@@ -149,7 +154,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
 
       {/* Previsión de facturación */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-medium text-gray-500">
+        <h3 className="text-xs font-medium text-gray-400">
           Previsión de facturación ({props.plannedInvoices.length})
         </h3>
         <ul className="flex flex-col gap-1">
@@ -158,9 +163,9 @@ export function FinancialsSection(props: FinancialsSectionProps) {
               <span>
                 {fmtDate(p.date)} — {p.description} — {money(p.amount)}{" "}
                 {p.invoiced ? (
-                  <span className="text-green-500">(facturada)</span>
+                  <span className="text-green-400">(facturada)</span>
                 ) : (
-                  <span className="text-gray-500">(pendiente)</span>
+                  <span className="text-gray-400">(pendiente)</span>
                 )}
               </span>
               {canEdit && !p.invoiced && (
@@ -185,11 +190,11 @@ export function FinancialsSection(props: FinancialsSectionProps) {
 
       {/* Facturas reales */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-medium text-gray-500">
+        <h3 className="text-xs font-medium text-gray-400">
           Facturas emitidas ({props.invoices.length})
         </h3>
         {props.invoices.length === 0 ? (
-          <p className="text-sm text-gray-500">Todavía no hay facturas emitidas.</p>
+          <p className="text-sm text-gray-400">Todavía no hay facturas emitidas.</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {props.invoices.map((inv) => (
@@ -204,7 +209,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
       {/* Tarifas de coste interno */}
       {canEdit && props.members.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-medium text-gray-500">
+          <h3 className="text-xs font-medium text-gray-400">
             Tarifa hora (coste interno)
           </h3>
           <ul className="flex flex-col gap-2">
@@ -220,7 +225,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
                     step="0.01"
                     defaultValue={m.hourlyRate ?? m.defaultRate ?? ""}
                     placeholder="tarifa/hora"
-                    className="w-24 rounded-md border border-gray-300 px-2 py-1 text-xs"
+                    className="w-24 rounded-md border border-gray-700 bg-gray-900/60 text-white px-2 py-1 text-xs"
                   />
                   <SubmitButton small>Guardar</SubmitButton>
                 </form>
@@ -229,7 +234,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           </ul>
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -244,13 +249,13 @@ function Stat({
 }) {
   return (
     <div>
-      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-xs text-gray-400">{label}</p>
       <p
         className={
           highlight === "risk"
-            ? "font-medium text-red-500"
+            ? "font-medium text-red-400"
             : highlight === "ok"
-              ? "font-medium text-green-500"
+              ? "font-medium text-green-400"
               : "font-medium"
         }
       >
@@ -275,13 +280,13 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-gray-500">{label}</label>
+      <label className="text-xs text-gray-400">{label}</label>
       <input
         name={name}
         type={type}
         step={step}
         defaultValue={defaultValue ?? undefined}
-        className="rounded-md border border-gray-300 px-2 py-1 text-xs"
+        className="rounded-md border border-gray-700 bg-gray-900/60 text-white px-2 py-1 text-xs"
       />
     </div>
   );
@@ -299,8 +304,8 @@ function SubmitButton({
       type="submit"
       className={
         small
-          ? "rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white"
-          : "rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white"
+          ? "rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
+          : "rounded-md bg-sky-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-400"
       }
     >
       {children}

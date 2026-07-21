@@ -10,7 +10,8 @@ import {
   calculateTotalBudget,
   isMarginAtRisk,
 } from "@/lib/financials";
-import { logout } from "./actions";
+import { Card } from "@/components/ui/card";
+import { AlertIcon, PlusIcon, TrendingUpIcon } from "@/components/ui/icons";
 
 // Dashboard real por rol — Gerencia ve todos los proyectos (con
 // rentabilidad, que es lo que le interesa para decidir), Gestor los
@@ -48,13 +49,6 @@ export default async function DashboardPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  const roleLabel =
-    role === Role.GERENCIA
-      ? "Gerencia"
-      : role === Role.GESTOR
-        ? "Gestor de Proyectos"
-        : "Colaborador";
-
   const projectsWithProfitability = projects.map((project) => {
     if (!canSeeFinancials) return { project, profitability: null };
 
@@ -76,37 +70,63 @@ export default async function DashboardPage() {
     return { project, profitability: { totalBudget, profitPercentage, atRisk } };
   });
 
+  const atRiskCount = projectsWithProfitability.filter(
+    (p) => p.profitability?.atRisk,
+  ).length;
+
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">
-            Hola, {session.user.name ?? session.user.email}
-          </h1>
-          <p className="text-xs text-gray-500">{roleLabel}</p>
-        </div>
-        <form action={logout}>
-          <button
-            type="submit"
-            className="text-sm text-gray-500 underline hover:text-gray-900"
-          >
-            Cerrar sesión
-          </button>
-        </form>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white">
+          Hola, {session.user.name ?? session.user.email}
+        </h1>
+        <p className="text-sm text-gray-400">
+          {role === Role.GERENCIA
+            ? "Todos los proyectos de la empresa"
+            : role === Role.GESTOR
+              ? "Tus proyectos"
+              : "Tus proyectos asignados"}
+        </p>
       </div>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-gray-500">
-            {role === Role.GERENCIA ? "Todos los proyectos" : "Tus proyectos"} (
+      {canSeeFinancials && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Card className="flex items-center gap-4">
+            <TrendingUpIcon className="h-8 w-8 text-sky-400" />
+            <div>
+              <p className="text-2xl font-bold text-white">{projects.length}</p>
+              <p className="text-xs text-gray-400">
+                {role === Role.GERENCIA ? "Proyectos activos" : "Tus proyectos"}
+              </p>
+            </div>
+          </Card>
+          <Card className="flex items-center gap-4">
+            <AlertIcon
+              className={`h-8 w-8 ${atRiskCount > 0 ? "text-red-400" : "text-green-400"}`}
+            />
+            <div>
+              <p className="text-2xl font-bold text-white">{atRiskCount}</p>
+              <p className="text-xs text-gray-400">
+                {atRiskCount === 1 ? "proyecto en riesgo" : "proyectos en riesgo"}
+              </p>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      <Card>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+            {role === Role.GERENCIA ? "Todos los proyectos" : "Proyectos"} (
             {projects.length})
           </h2>
           {role === Role.GESTOR && (
             <Link
               href="/projects/new"
-              className="text-xs text-gray-900 underline"
+              className="flex items-center gap-1 rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-400"
             >
-              + Nuevo proyecto
+              <PlusIcon className="h-4 w-4" />
+              Nuevo proyecto
             </Link>
           )}
         </div>
@@ -120,12 +140,12 @@ export default async function DashboardPage() {
               <li key={project.id}>
                 <Link
                   href={`/projects/${project.id}`}
-                  className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-2 text-sm hover:border-gray-400"
+                  className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-4 py-3 text-sm transition-colors hover:border-sky-500"
                 >
                   <span>
-                    <span className="font-medium">{project.name}</span>
+                    <span className="font-medium text-white">{project.name}</span>
                     {role === Role.GERENCIA && (
-                      <span className="text-gray-500">
+                      <span className="text-gray-400">
                         {" "}
                         — Gestor: {project.manager.name ?? project.manager.email}
                       </span>
@@ -135,12 +155,16 @@ export default async function DashboardPage() {
                     <span
                       className={
                         profitability.atRisk
-                          ? "text-xs font-medium text-red-500"
-                          : "text-xs font-medium text-green-500"
+                          ? "flex items-center gap-1 text-xs font-semibold text-red-400"
+                          : "text-xs font-semibold text-green-400"
                       }
                     >
-                      {profitability.profitPercentage.toFixed(0)}%{" "}
-                      {profitability.atRisk ? "⚠ en riesgo" : ""}
+                      {profitability.profitPercentage.toFixed(0)}%
+                      {profitability.atRisk && (
+                        <>
+                          <AlertIcon className="h-3.5 w-3.5" /> en riesgo
+                        </>
+                      )}
                     </span>
                   )}
                 </Link>
@@ -148,7 +172,7 @@ export default async function DashboardPage() {
             ))}
           </ul>
         )}
-      </section>
-    </main>
+      </Card>
+    </div>
   );
 }
