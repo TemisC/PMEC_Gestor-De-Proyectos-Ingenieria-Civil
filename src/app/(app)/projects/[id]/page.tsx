@@ -11,6 +11,7 @@ import {
   toAuthProject,
 } from "@/lib/authorization";
 import {
+  calculateExternalCost,
   calculateInternalCost,
   calculatePendingBilling,
   calculatePendingPlanned,
@@ -28,6 +29,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { TrashIcon } from "@/components/ui/icons";
 import { FinancialsSection } from "./financials-section";
+import { ExternalCollaboratorsSection } from "./external-collaborators-section";
 
 export default async function ProjectDetailPage({
   params,
@@ -52,6 +54,9 @@ export default async function ProjectDetailPage({
       additionals: true,
       plannedInvoices: { orderBy: { date: "asc" } },
       invoices: { orderBy: { date: "desc" } },
+      externalCollaborators: {
+        include: { additionals: true, payments: { orderBy: { date: "desc" } } },
+      },
     },
   });
 
@@ -100,7 +105,10 @@ export default async function ProjectDetailPage({
     ]),
   );
   const internalCost = calculateInternalCost(project.timeEntries, rateByUserId);
-  const profit = calculateProfit(totalBudget, internalCost);
+  const externalCost = calculateExternalCost(
+    project.externalCollaborators.flatMap((c) => c.payments),
+  );
+  const profit = calculateProfit(totalBudget, internalCost, externalCost);
   const profitPercentage = calculateProfitPercentage(profit, totalBudget);
   const atRisk = isMarginAtRisk(profitPercentage);
 
@@ -136,9 +144,18 @@ export default async function ProjectDetailPage({
           pendingBilling={pendingBilling}
           pendingPlanned={pendingPlanned}
           internalCost={internalCost}
+          externalCost={externalCost}
           profit={profit}
           profitPercentage={profitPercentage}
           atRisk={atRisk}
+        />
+      )}
+
+      {canSeeFinancials && (
+        <ExternalCollaboratorsSection
+          projectId={project.id}
+          canEdit={canManage}
+          collaborators={project.externalCollaborators}
         />
       )}
 

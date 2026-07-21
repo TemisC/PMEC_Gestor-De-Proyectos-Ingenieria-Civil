@@ -69,3 +69,39 @@ export const setMemberRateSchema = z.object({
   userId: z.string().min(1),
   hourlyRate: z.coerce.number().nonnegative("La tarifa no puede ser negativa"),
 });
+
+// --- Colaboradores externos (subcontratistas — se les paga, no cargan horas) ---
+
+export const addExternalCollaboratorSchema = z.object({
+  projectId: z.string().min(1),
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  company: z.string().trim().max(200).optional().or(z.literal("")),
+  contact: z.string().trim().max(200).optional().or(z.literal("")),
+  agreementAmount: z.coerce.number().nonnegative().optional().or(z.literal("")),
+  agreementUrl: optionalUrl,
+});
+
+export const addExternalAdditionalSchema = z.object({
+  externalCollaboratorId: z.string().min(1),
+  description: z.string().trim().min(1, "La descripción es obligatoria").max(200),
+  amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
+});
+
+export const addExternalPaymentSchema = z.object({
+  externalCollaboratorId: z.string().min(1),
+  date: z.coerce.date(),
+  amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+// --- Gestión de usuarios (Admin queda fuera del MVP, lo hace Gerencia) ---
+
+export const roleSchema = z.enum(["GERENCIA", "GESTOR", "COLABORADOR"]);
+
+export const createUserSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Email inválido"),
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  role: roleSchema,
+  password: z.string().min(8, "Mínimo 8 caracteres"),
+  defaultHourlyRate: z.coerce.number().nonnegative().optional().or(z.literal("")),
+});

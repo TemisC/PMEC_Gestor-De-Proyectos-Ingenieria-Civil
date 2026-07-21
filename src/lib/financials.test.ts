@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  calculateExternalCost,
   calculateInternalCost,
   calculatePendingBilling,
+  calculatePendingExternalPayment,
   calculatePendingPlanned,
   calculateProfit,
   calculateProfitPercentage,
@@ -45,6 +47,22 @@ describe("calculatePendingPlanned", () => {
       { amount: 2000, invoiced: false },
       { amount: 500, invoiced: false },
     ]);
+    expect(pending).toBe(2500);
+  });
+});
+
+describe("calculateExternalCost / calculatePendingExternalPayment", () => {
+  it("el coste externo es la suma de los pagos reales, no lo acordado", () => {
+    const cost = calculateExternalCost([{ amount: 1000 }, { amount: 500 }]);
+    expect(cost).toBe(1500);
+  });
+
+  it("lo pendiente de pagar es lo acordado (+ adicionales) menos lo ya pagado", () => {
+    const pending = calculatePendingExternalPayment(
+      3000,
+      [{ amount: 500 }],
+      [{ amount: 1000 }],
+    );
     expect(pending).toBe(2500);
   });
 });

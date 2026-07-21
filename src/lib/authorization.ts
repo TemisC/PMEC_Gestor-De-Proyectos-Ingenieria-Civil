@@ -64,6 +64,12 @@ export function canViewAllTimeEntries(
   return false;
 }
 
+// Alta de usuarios: el rol Admin queda fuera del MVP (sección 0.1 del
+// plan) — Gerencia asume esta función mínima mientras tanto.
+export function canManageUsers(user: AuthUser): boolean {
+  return user.role === Role.GERENCIA;
+}
+
 // Etapa 4: helper para construir un AuthProject a partir de lo que
 // devuelve Prisma (`project.findUnique({ include: { members: true } })`)
 // — un solo lugar donde se hace el mapeo, en vez de repetirlo en cada

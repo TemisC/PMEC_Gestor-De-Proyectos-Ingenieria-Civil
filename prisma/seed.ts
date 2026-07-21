@@ -125,6 +125,31 @@ async function main() {
     create: { id: "seed-planned-invoice-2", ...plannedInvoice2 },
   });
 
+  const externalCollaborator1 = {
+    name: "Topógrafo Externo SRL",
+    company: "Topografía Beta",
+    contact: "contacto@topobeta.example",
+    projectId: project1.id,
+    agreementAmount: 3000,
+  };
+  const topografo = await prisma.externalCollaborator.upsert({
+    where: { id: "seed-external-collaborator-1" },
+    update: externalCollaborator1,
+    create: { id: "seed-external-collaborator-1", ...externalCollaborator1 },
+  });
+
+  const externalPayment1 = {
+    externalCollaboratorId: topografo.id,
+    amount: 1500,
+    date: new Date("2026-07-10"),
+    description: "Primer pago (50%)",
+  };
+  await prisma.externalCollaboratorPayment.upsert({
+    where: { id: "seed-external-payment-1" },
+    update: externalPayment1,
+    create: { id: "seed-external-payment-1", ...externalPayment1 },
+  });
+
   // --- Proyecto 2: en riesgo (coste interno ya se comió más de la
   // mitad del presupuesto) — para que el flag de riesgo del dashboard
   // se vea con datos reales, no solo en la teoría ---

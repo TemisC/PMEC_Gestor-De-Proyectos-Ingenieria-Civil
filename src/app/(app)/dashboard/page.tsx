@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/generated/prisma/enums";
 import {
+  calculateExternalCost,
   calculateInternalCost,
   calculateProfit,
   calculateProfitPercentage,
@@ -45,6 +46,7 @@ export default async function DashboardPage() {
       invoices: true,
       timeEntries: true,
       members: { include: { user: true } },
+      externalCollaborators: { include: { payments: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -63,7 +65,10 @@ export default async function DashboardPage() {
       ]),
     );
     const internalCost = calculateInternalCost(project.timeEntries, rateByUserId);
-    const profit = calculateProfit(totalBudget, internalCost);
+    const externalCost = calculateExternalCost(
+      project.externalCollaborators.flatMap((c) => c.payments),
+    );
+    const profit = calculateProfit(totalBudget, internalCost, externalCost);
     const profitPercentage = calculateProfitPercentage(profit, totalBudget);
     const atRisk = isMarginAtRisk(profitPercentage);
 

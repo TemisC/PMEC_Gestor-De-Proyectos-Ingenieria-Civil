@@ -52,6 +52,27 @@ export function calculateInternalCost(
   }, 0);
 }
 
+// Coste externo = pagos REALES ya hechos a colaboradores externos (no
+// lo acordado/previsto) — mismo criterio que el coste interno: se basa
+// en lo efectivamente ejecutado, no en compromisos futuros.
+export function calculateExternalCost(
+  payments: { amount: number }[],
+): number {
+  return payments.reduce((sum, p) => sum + p.amount, 0);
+}
+
+// Cuánto falta pagarle a un colaborador externo puntual: lo acordado
+// (+ adicionales) menos lo ya pagado.
+export function calculatePendingExternalPayment(
+  agreementAmount: number | null | undefined,
+  additionals: { amount: number }[],
+  payments: { amount: number }[],
+): number {
+  const committed = calculateTotalBudget(agreementAmount, additionals);
+  const paid = calculateExternalCost(payments);
+  return committed - paid;
+}
+
 export function calculateProfit(
   totalBudget: number,
   internalCost: number,

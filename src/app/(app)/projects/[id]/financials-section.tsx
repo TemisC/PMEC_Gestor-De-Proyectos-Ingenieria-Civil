@@ -34,6 +34,7 @@ export type FinancialsSectionProps = {
   pendingBilling: Money;
   pendingPlanned: Money;
   internalCost: Money;
+  externalCost: Money;
   profit: Money;
   profitPercentage: number;
   atRisk: boolean;
@@ -68,6 +69,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
         <Stat label="Pendiente de facturar" value={money(props.pendingBilling)} />
         <Stat label="Previsto sin facturar" value={money(props.pendingPlanned)} />
         <Stat label="Coste interno" value={money(props.internalCost)} />
+        <Stat label="Coste externo" value={money(props.externalCost)} />
         <Stat
           label="Rentabilidad"
           value={`${money(props.profit)} (${props.profitPercentage.toFixed(1)}%)`}

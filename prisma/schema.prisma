@@ -55,12 +55,13 @@ model Project {
   managerId String
   manager   User   @relation("ProjectManager", fields: [managerId], references: [id])
 
-  members         ProjectMember[]
-  timeEntries     TimeEntry[]
-  agreement       ProjectAgreement?
-  additionals     ProjectAdditional[]
-  plannedInvoices PlannedInvoice[]
-  invoices        Invoice[]
+  members              ProjectMember[]
+  timeEntries          TimeEntry[]
+  agreement            ProjectAgreement?
+  additionals          ProjectAdditional[]
+  plannedInvoices      PlannedInvoice[]
+  invoices             Invoice[]
+  externalCollaborators ExternalCollaborator[]
 
   createdAt DateTime @default(now())
 }
@@ -152,6 +153,55 @@ model Invoice {
   date   DateTime
   pdfUrl String?
   source InvoiceSource @default(AGREEMENT)
+
+  createdAt DateTime @default(now())
+}
+
+// Colaborador externo (subcontratista) — a diferencia de un Colaborador
+// interno (User con rol COLABORADOR, que carga horas), un externo no es
+// un usuario del sistema: se le paga por acuerdo/adicionales, no por
+// hora. Mismo concepto que CollaboratorInfo del SPA original.
+model ExternalCollaborator {
+  id      String  @id @default(cuid())
+  name    String
+  company String?
+  contact String?
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  agreementAmount Float?
+  agreementUrl    String?
+
+  additionals ExternalCollaboratorAdditional[]
+  payments    ExternalCollaboratorPayment[]
+
+  createdAt DateTime @default(now())
+}
+
+model ExternalCollaboratorAdditional {
+  id                     String               @id @default(cuid())
+  externalCollaboratorId String
+  externalCollaborator   ExternalCollaborator @relation(fields: [externalCollaboratorId], references: [id])
+
+  description String
+  amount      Float
+
+  createdAt DateTime @default(now())
+}
+
+// Pago real ya realizado al colaborador externo (equivalente a
+// ReceivedInvoice del SPA original) — es lo que cuenta como coste
+// externo real en la rentabilidad, igual que el coste interno se basa
+// en horas ya cargadas, no en previsiones.
+model ExternalCollaboratorPayment {
+  id                     String               @id @default(cuid())
+  externalCollaboratorId String
+  externalCollaborator   ExternalCollaborator @relation(fields: [externalCollaboratorId], references: [id])
+
+  amount      Float
+  date        DateTime
+  description String?
 
   createdAt DateTime @default(now())
 }

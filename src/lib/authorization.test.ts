@@ -3,6 +3,7 @@ import { Role } from "@/generated/prisma/enums";
 import {
   canLogTimeEntry,
   canManageProject,
+  canManageUsers,
   canViewAllTimeEntries,
   canViewProject,
   type AuthProject,
@@ -107,5 +108,19 @@ describe("canViewAllTimeEntries", () => {
     expect(canViewAllTimeEntries(colaboradorAsignado, proyectoDeGestorA)).toBe(
       false,
     );
+  });
+});
+
+describe("canManageUsers", () => {
+  it("Gerencia puede crear/gestionar usuarios (Admin queda fuera del MVP)", () => {
+    expect(canManageUsers(gerencia)).toBe(true);
+  });
+
+  it("un Gestor no puede crear usuarios", () => {
+    expect(canManageUsers(gestorA)).toBe(false);
+  });
+
+  it("un Colaborador no puede crear usuarios", () => {
+    expect(canManageUsers(colaboradorAsignado)).toBe(false);
   });
 });
