@@ -1,0 +1,36 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Etapa 1 (esqueleto caminante): modelo mínimo, solo para probar que
+// Prisma + SQLite + login funcionan de punta a punta. El modelo completo
+// del MVP (roles Gerencia/Gestor/Colaborador, TimeEntry) se agrega en la
+// Etapa 2 (plan_maestro.md, sección 11).
+model User {
+  id       String  @id @default(cuid())
+  email    String  @unique
+  name     String?
+  password String
+
+  projects Project[]
+
+  createdAt DateTime @default(now())
+}
+
+model Project {
+  id   String @id @default(cuid())
+  name String
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "file:./dev.db"
+      AUTH_SECRET: "ci-only-secret-not-used-in-production"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Instalación reproducible desde el lockfile — nunca `npm install` en CI
+      # (plan_maestro.md, sección 5.7: cadena de suministro).
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Dependency audit (gate bloqueante en vulnerabilidades altas/críticas)
+        run: npm audit --audit-level=high
+
+      - name: Prisma migrate (SQLite de CI)
+        run: npx prisma migrate deploy
+
+      - name: Build
+        run: npm run build
