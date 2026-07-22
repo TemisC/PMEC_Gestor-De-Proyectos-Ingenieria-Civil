@@ -11,6 +11,20 @@ export const createProjectSchema = z.object({
   newClientName: z.string().trim().max(200).optional().or(z.literal("")),
 });
 
+export const updateProjectSchema = z.object({
+  projectId: z.string().min(1),
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  clientId: z.string().optional().or(z.literal("")),
+  newClientName: z.string().trim().max(200).optional().or(z.literal("")),
+});
+
+export const projectStatusSchema = z.enum(["ACTIVE", "ARCHIVED"]);
+
+export const setProjectStatusSchema = z.object({
+  projectId: z.string().min(1),
+  status: projectStatusSchema,
+});
+
 export const addProjectMemberSchema = z.object({
   projectId: z.string().min(1),
   userId: z.string().min(1),
@@ -26,6 +40,17 @@ export const logTimeEntrySchema = z.object({
   date: z.coerce.date(),
   hours: z.coerce.number().positive().max(24, "No puede ser más de 24 horas por carga"),
   description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const updateTimeEntrySchema = z.object({
+  timeEntryId: z.string().min(1),
+  date: z.coerce.date(),
+  hours: z.coerce.number().positive().max(24, "No puede ser más de 24 horas por carga"),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const deleteTimeEntrySchema = z.object({
+  timeEntryId: z.string().min(1),
 });
 
 // --- Ampliación financiera (previsiones, facturas, coste interno) ---
@@ -52,6 +77,17 @@ export const addAdditionalSchema = z.object({
   url: optionalUrl,
 });
 
+export const updateAdditionalSchema = z.object({
+  additionalId: z.string().min(1),
+  description: z.string().trim().min(1, "La descripción es obligatoria").max(200),
+  amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
+  url: optionalUrl,
+});
+
+export const deleteAdditionalSchema = z.object({
+  additionalId: z.string().min(1),
+});
+
 export const invoiceSourceSchema = z.enum(["AGREEMENT", "ADDITIONAL"]);
 
 export const addPlannedInvoiceSchema = z.object({
@@ -65,6 +101,31 @@ export const addPlannedInvoiceSchema = z.object({
 export const promotePlannedInvoiceSchema = z.object({
   plannedInvoiceId: z.string().min(1),
   pdfUrl: optionalUrl,
+});
+
+// Editar/borrar una previsión solo tiene sentido mientras no se promovió a
+// factura real (invoiced === false) — una vez facturada, es un registro
+// histórico; la corrección se hace sobre la Invoice, no acá.
+export const updatePlannedInvoiceSchema = z.object({
+  plannedInvoiceId: z.string().min(1),
+  description: z.string().trim().min(1, "La descripción es obligatoria").max(200),
+  date: z.coerce.date(),
+  amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
+});
+
+export const deletePlannedInvoiceSchema = z.object({
+  plannedInvoiceId: z.string().min(1),
+});
+
+export const updateInvoiceSchema = z.object({
+  invoiceId: z.string().min(1),
+  amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
+  date: z.coerce.date(),
+  pdfUrl: optionalUrl,
+});
+
+export const deleteInvoiceSchema = z.object({
+  invoiceId: z.string().min(1),
 });
 
 export const setMemberRateSchema = z.object({
@@ -84,10 +145,33 @@ export const addExternalCollaboratorSchema = z.object({
   agreementUrl: optionalUrl,
 });
 
+export const updateExternalCollaboratorSchema = z.object({
+  externalCollaboratorId: z.string().min(1),
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  company: z.string().trim().max(200).optional().or(z.literal("")),
+  contact: z.string().trim().max(200).optional().or(z.literal("")),
+  agreementAmount: z.coerce.number().nonnegative().optional().or(z.literal("")),
+  agreementUrl: optionalUrl,
+});
+
+export const deleteExternalCollaboratorSchema = z.object({
+  externalCollaboratorId: z.string().min(1),
+});
+
 export const addExternalAdditionalSchema = z.object({
   externalCollaboratorId: z.string().min(1),
   description: z.string().trim().min(1, "La descripción es obligatoria").max(200),
   amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
+});
+
+export const updateExternalAdditionalSchema = z.object({
+  externalAdditionalId: z.string().min(1),
+  description: z.string().trim().min(1, "La descripción es obligatoria").max(200),
+  amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
+});
+
+export const deleteExternalAdditionalSchema = z.object({
+  externalAdditionalId: z.string().min(1),
 });
 
 export const addExternalPaymentSchema = z.object({
@@ -95,6 +179,17 @@ export const addExternalPaymentSchema = z.object({
   date: z.coerce.date(),
   amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
   description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const updateExternalPaymentSchema = z.object({
+  externalPaymentId: z.string().min(1),
+  date: z.coerce.date(),
+  amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const deleteExternalPaymentSchema = z.object({
+  externalPaymentId: z.string().min(1),
 });
 
 // --- Clientes (catálogo global de Deltana) ---

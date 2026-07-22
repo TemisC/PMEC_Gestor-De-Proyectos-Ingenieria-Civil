@@ -4,6 +4,7 @@ import {
   canAccessClients,
   canLogTimeEntry,
   canManageProject,
+  canManageTimeEntry,
   canManageUsers,
   canViewAllTimeEntries,
   canViewProject,
@@ -109,6 +110,38 @@ describe("canViewAllTimeEntries", () => {
     expect(canViewAllTimeEntries(colaboradorAsignado, proyectoDeGestorA)).toBe(
       false,
     );
+  });
+});
+
+describe("canManageTimeEntry", () => {
+  it("el Colaborador dueño de la entrada puede corregirla/borrarla", () => {
+    expect(
+      canManageTimeEntry(colaboradorAsignado, proyectoDeGestorA, colaboradorAsignado.id),
+    ).toBe(true);
+  });
+
+  it("un Colaborador NO puede tocar una entrada ajena", () => {
+    expect(
+      canManageTimeEntry(colaboradorAsignado, proyectoDeGestorA, colaboradorAjeno.id),
+    ).toBe(false);
+  });
+
+  it("el Gestor responsable puede corregir/borrar cualquier entrada de su proyecto", () => {
+    expect(
+      canManageTimeEntry(gestorA, proyectoDeGestorA, colaboradorAsignado.id),
+    ).toBe(true);
+  });
+
+  it("un Gestor de otro proyecto NO puede tocar la entrada", () => {
+    expect(
+      canManageTimeEntry(gestorB, proyectoDeGestorA, colaboradorAsignado.id),
+    ).toBe(false);
+  });
+
+  it("Gerencia nunca edita/borra entradas (solo lectura)", () => {
+    expect(
+      canManageTimeEntry(gerencia, proyectoDeGestorA, colaboradorAsignado.id),
+    ).toBe(false);
   });
 });
 

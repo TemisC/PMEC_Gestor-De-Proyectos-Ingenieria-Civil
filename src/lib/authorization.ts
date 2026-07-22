@@ -52,6 +52,20 @@ export function canLogTimeEntry(user: AuthUser, project: AuthProject): boolean {
   return user.role === Role.COLABORADOR && project.memberIds.includes(user.id);
 }
 
+// Corrección de horas cargadas (2026-07-22): el propio Colaborador dueño de
+// la entrada, o el Gestor responsable del proyecto (para cualquier entrada
+// del proyecto, no solo las propias — cubre el caso de un Colaborador que ya
+// no está disponible para corregir su propio error). Gerencia nunca edita
+// nada (solo lectura, igual que el resto de las políticas de gestión).
+export function canManageTimeEntry(
+  user: AuthUser,
+  project: AuthProject,
+  entryUserId: string,
+): boolean {
+  if (canManageProject(user, project)) return true;
+  return user.role === Role.COLABORADOR && entryUserId === user.id;
+}
+
 export function canViewAllTimeEntries(
   user: AuthUser,
   project: AuthProject,

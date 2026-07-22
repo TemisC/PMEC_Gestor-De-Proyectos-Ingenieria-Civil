@@ -2,9 +2,16 @@ import {
   addExternalAdditional,
   addExternalCollaborator,
   addExternalPayment,
+  deleteExternalAdditional,
+  deleteExternalCollaborator,
+  deleteExternalPayment,
+  updateExternalAdditional,
+  updateExternalCollaborator,
+  updateExternalPayment,
 } from "@/app/(app)/projects/external-collaborators-actions";
 import { calculateExternalCost, calculatePendingExternalPayment } from "@/lib/financials";
 import { Card } from "@/components/ui/card";
+import { TrashIcon } from "@/components/ui/icons";
 
 type Money = number;
 
@@ -77,24 +84,163 @@ export function ExternalCollaboratorsSection({
               </div>
             </div>
 
+            {canEdit && (
+              <div className="flex flex-wrap items-end gap-2 border-t border-gray-700 pt-2">
+                <form action={updateExternalCollaborator} className="flex flex-wrap items-end gap-2">
+                  <input type="hidden" name="externalCollaboratorId" value={c.id} />
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400">Nombre</label>
+                    <input
+                      name="name"
+                      defaultValue={c.name}
+                      className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400">Empresa</label>
+                    <input
+                      name="company"
+                      defaultValue={c.company ?? ""}
+                      className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400">Contacto</label>
+                    <input
+                      name="contact"
+                      defaultValue={c.contact ?? ""}
+                      className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400">Acordado</label>
+                    <input
+                      name="agreementAmount"
+                      type="number"
+                      step="0.01"
+                      defaultValue={c.agreementAmount ?? ""}
+                      className="w-24 rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
+                  >
+                    Guardar
+                  </button>
+                </form>
+                <form action={deleteExternalCollaborator}>
+                  <input type="hidden" name="externalCollaboratorId" value={c.id} />
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" /> Eliminar colaborador
+                  </button>
+                </form>
+              </div>
+            )}
+
             {c.additionals.length > 0 && (
-              <ul className="text-xs text-gray-400">
-                {c.additionals.map((a) => (
-                  <li key={a.id}>
-                    + {a.description} — {money(a.amount)}
-                  </li>
-                ))}
+              <ul className="flex flex-col gap-1 text-xs text-gray-400">
+                {c.additionals.map((a) =>
+                  canEdit ? (
+                    <li key={a.id} className="flex flex-wrap items-end gap-2">
+                      <form
+                        action={updateExternalAdditional}
+                        className="flex flex-wrap items-end gap-2"
+                      >
+                        <input type="hidden" name="externalAdditionalId" value={a.id} />
+                        <input
+                          name="description"
+                          defaultValue={a.description}
+                          className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                        />
+                        <input
+                          name="amount"
+                          type="number"
+                          step="0.01"
+                          defaultValue={a.amount}
+                          className="w-24 rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                        />
+                        <button
+                          type="submit"
+                          className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
+                        >
+                          Guardar
+                        </button>
+                      </form>
+                      <form action={deleteExternalAdditional}>
+                        <input type="hidden" name="externalAdditionalId" value={a.id} />
+                        <button
+                          type="submit"
+                          className="flex items-center gap-1 text-red-400 hover:text-red-300"
+                        >
+                          <TrashIcon className="h-3 w-3" /> Eliminar
+                        </button>
+                      </form>
+                    </li>
+                  ) : (
+                    <li key={a.id}>
+                      + {a.description} — {money(a.amount)}
+                    </li>
+                  ),
+                )}
               </ul>
             )}
 
             {c.payments.length > 0 && (
-              <ul className="text-xs text-gray-400">
-                {c.payments.map((p) => (
-                  <li key={p.id}>
-                    {p.date.toISOString().slice(0, 10)} — {money(p.amount)}
-                    {p.description && ` — ${p.description}`}
-                  </li>
-                ))}
+              <ul className="flex flex-col gap-1 text-xs text-gray-400">
+                {c.payments.map((p) =>
+                  canEdit ? (
+                    <li key={p.id} className="flex flex-wrap items-end gap-2">
+                      <form
+                        action={updateExternalPayment}
+                        className="flex flex-wrap items-end gap-2"
+                      >
+                        <input type="hidden" name="externalPaymentId" value={p.id} />
+                        <input
+                          name="date"
+                          type="date"
+                          defaultValue={p.date.toISOString().slice(0, 10)}
+                          className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                        />
+                        <input
+                          name="amount"
+                          type="number"
+                          step="0.01"
+                          defaultValue={p.amount}
+                          className="w-24 rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                        />
+                        <input
+                          name="description"
+                          defaultValue={p.description ?? ""}
+                          className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                        />
+                        <button
+                          type="submit"
+                          className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
+                        >
+                          Guardar
+                        </button>
+                      </form>
+                      <form action={deleteExternalPayment}>
+                        <input type="hidden" name="externalPaymentId" value={p.id} />
+                        <button
+                          type="submit"
+                          className="flex items-center gap-1 text-red-400 hover:text-red-300"
+                        >
+                          <TrashIcon className="h-3 w-3" /> Eliminar
+                        </button>
+                      </form>
+                    </li>
+                  ) : (
+                    <li key={p.id}>
+                      {p.date.toISOString().slice(0, 10)} — {money(p.amount)}
+                      {p.description && ` — ${p.description}`}
+                    </li>
+                  ),
+                )}
               </ul>
             )}
 

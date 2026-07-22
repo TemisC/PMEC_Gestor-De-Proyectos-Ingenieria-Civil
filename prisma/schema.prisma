@@ -34,6 +34,16 @@ enum ClientContactType {
   ECONOMIC
 }
 
+// Archivar (no borrar) es la única forma de "cerrar" un proyecto — decisión
+// explícita del usuario (2026-07-22): preserva toda la info financiera/horas
+// para siempre, solo cambia de qué lista aparece por default. Archivar NO
+// bloquea seguir editando/cargando horas (simplificación deliberada de esta
+// tanda; ver plan_maestro.md si en el futuro se pide bloquear ediciones).
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 // Cliente — entidad GLOBAL de toda Deltana, no de un Gestor en
 // particular (mismo criterio que colaboradores/tarifas — sección 2 del
 // plan: "catálogos compartidos... evita que dos consultores dupliquen
@@ -89,8 +99,9 @@ model User {
 }
 
 model Project {
-  id   String @id @default(cuid())
-  name String
+  id     String        @id @default(cuid())
+  name   String
+  status ProjectStatus @default(ACTIVE)
 
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id])

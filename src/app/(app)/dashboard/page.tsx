@@ -18,7 +18,11 @@ import { AlertIcon, PlusIcon, TrendingUpIcon } from "@/components/ui/icons";
 // rentabilidad, que es lo que le interesa para decidir), Gestor los
 // suyos, Colaborador solo los que tiene asignados (sin nada
 // financiero). El detalle de cada proyecto vive en /projects/[id].
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ archived?: string }>;
+}) {
   const session = await auth();
 
   // Defensa en profundidad: no depender solo del proxy (src/proxy.ts)
@@ -32,13 +36,21 @@ export default async function DashboardPage() {
   const role = session.user.role;
   const canSeeFinancials = role === Role.GERENCIA || role === Role.GESTOR;
 
+  // Por default solo activos (Etapa "gestión de punta a punta", 2026-07-22):
+  // un proyecto archivado sigue existiendo con toda su info, pero deja de
+  // aparecer acá salvo que se pida explícitamente con ?archived=1.
+  const { archived } = await searchParams;
+  const showArchived = archived === "1";
+
+  const roleFilter =
+    role === Role.GERENCIA
+      ? {} // Gerencia ve todos los proyectos — acá sí es intencional, no un bug.
+      : role === Role.GESTOR
+        ? { managerId: userId }
+        : { members: { some: { userId } } };
+
   const projects = await prisma.project.findMany({
-    where:
-      role === Role.GERENCIA
-        ? undefined // Gerencia ve todos los proyectos — acá sí es intencional, no un bug.
-        : role === Role.GESTOR
-          ? { managerId: userId }
-          : { members: { some: { userId } } },
+    where: { ...roleFilter, status: showArchived ? "ARCHIVED" : "ACTIVE" },
     include: {
       manager: true,
       agreement: true,
@@ -122,22 +134,32 @@ export default async function DashboardPage() {
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-            {role === Role.GERENCIA ? "Todos los proyectos" : "Proyectos"} (
-            {projects.length})
+            {role === Role.GERENCIA ? "Todos los proyectos" : "Proyectos"}
+            {showArchived ? " archivados" : ""} ({projects.length})
           </h2>
-          {role === Role.GESTOR && (
+          <div className="flex items-center gap-3">
             <Link
-              href="/projects/new"
-              className="flex items-center gap-1 rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-400"
+              href={showArchived ? "/dashboard" : "/dashboard?archived=1"}
+              className="text-xs text-sky-400 hover:underline"
             >
-              <PlusIcon className="h-4 w-4" />
-              Nuevo proyecto
+              {showArchived ? "Ver activos" : "Ver archivados"}
             </Link>
-          )}
+            {role === Role.GESTOR && (
+              <Link
+                href="/projects/new"
+                className="flex items-center gap-1 rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-400"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Nuevo proyecto
+              </Link>
+            )}
+          </div>
         </div>
         {projects.length === 0 ? (
           <p className="text-sm text-gray-500">
-            Todavía no hay proyectos para mostrar.
+            {showArchived
+              ? "No hay proyectos archivados."
+              : "Todavía no hay proyectos para mostrar."}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">

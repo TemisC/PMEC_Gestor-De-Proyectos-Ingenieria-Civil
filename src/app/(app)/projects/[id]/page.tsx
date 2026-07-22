@@ -7,6 +7,7 @@ import {
   canAccessClients,
   canLogTimeEntry,
   canManageProject,
+  canManageTimeEntry,
   canViewAllTimeEntries,
   canViewProject,
   toAuthProject,
@@ -24,8 +25,12 @@ import {
 } from "@/lib/financials";
 import {
   addProjectMember,
+  deleteTimeEntry,
   logTimeEntry,
   removeProjectMember,
+  setProjectStatus,
+  updateProject,
+  updateTimeEntry,
 } from "@/app/(app)/projects/actions";
 import { Card } from "@/components/ui/card";
 import { TrashIcon } from "@/components/ui/icons";
@@ -68,9 +73,10 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const canManage = canManageProject(authUser, toAuthProject(project));
-  const canLog = canLogTimeEntry(authUser, toAuthProject(project));
-  const canSeeAllEntries = canViewAllTimeEntries(authUser, toAuthProject(project));
+  const authProject = toAuthProject(project);
+  const canManage = canManageProject(authUser, authProject);
+  const canLog = canLogTimeEntry(authUser, authProject);
+  const canSeeAllEntries = canViewAllTimeEntries(authUser, authProject);
   // Datos financieros: Gerencia los ve (solo lectura) además del Gestor
   // dueño (edición) — un Colaborador nunca ve nada financiero (sección 2
   // del plan: "no ve datos financieros ni proyectos ajenos").
@@ -88,6 +94,12 @@ export default async function ProjectDetailPage({
         },
         orderBy: { email: "asc" },
       })
+    : [];
+
+  // Selector de cliente al editar (mismo criterio que /projects/new): elegir
+  // uno existente del catálogo global o escribir el nombre de uno nuevo.
+  const clients = canManage
+    ? await prisma.client.findMany({ orderBy: { name: "asc" } })
     : [];
 
   // Cálculo de rentabilidad — funciones puras de src/lib/financials.ts,
@@ -120,7 +132,14 @@ export default async function ProjectDetailPage({
         <Link href="/dashboard" className="text-xs text-sky-400 hover:underline">
           ← Volver
         </Link>
-        <h1 className="text-2xl font-bold text-white">{project.name}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-white">{project.name}</h1>
+          {project.status === "ARCHIVED" && (
+            <span className="rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-300">
+              Archivado
+            </span>
+          )}
+        </div>
         <p className="text-sm text-gray-400">
           Cliente:{" "}
           {project.client ? (
@@ -139,6 +158,67 @@ export default async function ProjectDetailPage({
           )}{" "}
           · Gestor: {project.manager.name ?? project.manager.email}
         </p>
+
+        {canManage && (
+          <div className="mt-3 flex flex-col gap-2 rounded-md border border-gray-700 bg-gray-900/40 p-3">
+            <form action={updateProject} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="projectId" value={project.id} />
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-400">Nombre</label>
+                <input
+                  name="name"
+                  defaultValue={project.name}
+                  className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                />
+              </div>
+              {clients.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-400">Cliente</label>
+                  <select
+                    name="clientId"
+                    defaultValue={project.clientId ?? ""}
+                    className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                  >
+                    <option value="">— Ninguno —</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-400">O cliente nuevo</label>
+                <input
+                  name="newClientName"
+                  className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                />
+              </div>
+              <button
+                type="submit"
+                className="rounded-md bg-sky-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-400"
+              >
+                Guardar
+              </button>
+            </form>
+
+            <form action={setProjectStatus}>
+              <input type="hidden" name="projectId" value={project.id} />
+              <input
+                type="hidden"
+                name="status"
+                value={project.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE"}
+              />
+              <button
+                type="submit"
+                className="text-xs text-gray-400 hover:text-white hover:underline"
+              >
+                {project.status === "ACTIVE" ? "Archivar proyecto" : "Reactivar proyecto"}
+              </button>
+            </form>
+          </div>
+        )}
       </div>
 
       {canSeeFinancials && (
@@ -302,23 +382,85 @@ export default async function ProjectDetailPage({
           <p className="text-sm text-gray-500">Todavía no hay horas cargadas.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {visibleTimeEntries.map((entry) => (
-              <li
-                key={entry.id}
-                className="rounded-md border border-gray-700 bg-gray-900/40 px-3 py-2 text-sm text-white"
-              >
-                {entry.date.toISOString().slice(0, 10)} — {entry.hours}h
-                {canSeeAllEntries && (
-                  <span className="text-gray-400">
-                    {" "}
-                    ({entry.user.name ?? entry.user.email})
-                  </span>
-                )}
-                {entry.description && (
-                  <span className="text-gray-400"> — {entry.description}</span>
-                )}
-              </li>
-            ))}
+            {visibleTimeEntries.map((entry) => {
+              const canManageEntry = canManageTimeEntry(authUser, authProject, entry.userId);
+              return (
+                <li
+                  key={entry.id}
+                  className="flex flex-col gap-2 rounded-md border border-gray-700 bg-gray-900/40 px-3 py-2 text-sm text-white"
+                >
+                  {canManageEntry ? (
+                    <form action={updateTimeEntry} className="flex flex-wrap items-end gap-2">
+                      <input type="hidden" name="timeEntryId" value={entry.id} />
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-gray-400">Fecha</label>
+                        <input
+                          name="date"
+                          type="date"
+                          defaultValue={entry.date.toISOString().slice(0, 10)}
+                          className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                        />
+                      </div>
+                      <div className="flex w-20 flex-col gap-1">
+                        <label className="text-xs text-gray-400">Horas</label>
+                        <input
+                          name="hours"
+                          type="number"
+                          step="0.5"
+                          min="0.5"
+                          max="24"
+                          defaultValue={entry.hours}
+                          className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                        />
+                      </div>
+                      <div className="flex flex-1 flex-col gap-1">
+                        <label className="text-xs text-gray-400">Descripción</label>
+                        <input
+                          name="description"
+                          defaultValue={entry.description ?? ""}
+                          className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                        />
+                      </div>
+                      {canSeeAllEntries && (
+                        <span className="text-xs text-gray-400">
+                          ({entry.user.name ?? entry.user.email})
+                        </span>
+                      )}
+                      <button
+                        type="submit"
+                        className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
+                      >
+                        Guardar
+                      </button>
+                    </form>
+                  ) : (
+                    <span>
+                      {entry.date.toISOString().slice(0, 10)} — {entry.hours}h
+                      {canSeeAllEntries && (
+                        <span className="text-gray-400">
+                          {" "}
+                          ({entry.user.name ?? entry.user.email})
+                        </span>
+                      )}
+                      {entry.description && (
+                        <span className="text-gray-400"> — {entry.description}</span>
+                      )}
+                    </span>
+                  )}
+                  {canManageEntry && (
+                    <form action={deleteTimeEntry} className="self-end">
+                      <input type="hidden" name="timeEntryId" value={entry.id} />
+                      <button
+                        type="submit"
+                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" /> Eliminar
+                      </button>
+                    </form>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>

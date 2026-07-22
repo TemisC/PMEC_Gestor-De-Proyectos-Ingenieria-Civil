@@ -8,14 +8,34 @@ import { Role } from "@/generated/prisma/enums";
 import {
   canLogTimeEntry,
   canManageProject,
+  canManageTimeEntry,
   toAuthProject,
 } from "@/lib/authorization";
 import {
   addProjectMemberSchema,
   createProjectSchema,
+  deleteTimeEntrySchema,
   logTimeEntrySchema,
   removeProjectMemberSchema,
+  setProjectStatusSchema,
+  updateProjectSchema,
+  updateTimeEntrySchema,
 } from "@/lib/schemas";
+
+async function assertCanManage(projectId: string) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("No autorizado");
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: { members: true },
+  });
+  if (!project || !canManageProject({ id: userId, role: session.user.role }, toAuthProject(project))) {
+    throw new Error("No autorizado");
+  }
+  return project;
+}
 
 // Etapa 4 (plan_maestro.md, sección 11): CRUD real de Proyectos y carga
 // de horas. Cada acción vuelve a validar rol/pertenencia server-side —
@@ -62,6 +82,57 @@ export async function createProject(formData: FormData) {
 
   revalidatePath("/dashboard");
   redirect(`/projects/${project.id}`);
+}
+
+export async function updateProject(formData: FormData) {
+  const parsed = updateProjectSchema.safeParse({
+    projectId: formData.get("projectId"),
+    name: formData.get("name"),
+    clientId: formData.get("clientId"),
+    newClientName: formData.get("newClientName"),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+
+  await assertCanManage(parsed.data.projectId);
+
+  let clientId: string | null = parsed.data.clientId || null;
+  if (parsed.data.newClientName) {
+    const client = await prisma.client.upsert({
+      where: { name: parsed.data.newClientName },
+      update: {},
+      create: { name: parsed.data.newClientName },
+    });
+    clientId = client.id;
+  }
+
+  await prisma.project.update({
+    where: { id: parsed.data.projectId },
+    data: { name: parsed.data.name, clientId },
+  });
+
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/dashboard");
+}
+
+// Archivar/reactivar (2026-07-22): la única forma de "cerrar" un proyecto —
+// soft, nunca se borra. No bloquea seguir editando/cargando horas, solo
+// cambia de qué lista del dashboard aparece por default.
+export async function setProjectStatus(formData: FormData) {
+  const parsed = setProjectStatusSchema.safeParse({
+    projectId: formData.get("projectId"),
+    status: formData.get("status"),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+
+  await assertCanManage(parsed.data.projectId);
+
+  await prisma.project.update({
+    where: { id: parsed.data.projectId },
+    data: { status: parsed.data.status },
+  });
+
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/dashboard");
 }
 
 export async function addProjectMember(formData: FormData) {
@@ -160,4 +231,64 @@ export async function logTimeEntry(formData: FormData) {
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
+}
+
+// Corrección de horas (2026-07-22): el propio Colaborador dueño de la
+// entrada, o el Gestor responsable del proyecto (canManageTimeEntry).
+async function assertCanManageTimeEntry(timeEntryId: string) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("No autorizado");
+
+  const entry = await prisma.timeEntry.findUnique({
+    where: { id: timeEntryId },
+    include: { project: { include: { members: true } } },
+  });
+  if (
+    !entry ||
+    !canManageTimeEntry(
+      { id: userId, role: session.user.role },
+      toAuthProject(entry.project),
+      entry.userId,
+    )
+  ) {
+    throw new Error("No autorizado");
+  }
+  return entry;
+}
+
+export async function updateTimeEntry(formData: FormData) {
+  const parsed = updateTimeEntrySchema.safeParse({
+    timeEntryId: formData.get("timeEntryId"),
+    date: formData.get("date"),
+    hours: formData.get("hours"),
+    description: formData.get("description"),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+
+  const entry = await assertCanManageTimeEntry(parsed.data.timeEntryId);
+
+  await prisma.timeEntry.update({
+    where: { id: parsed.data.timeEntryId },
+    data: {
+      date: parsed.data.date,
+      hours: parsed.data.hours,
+      description: parsed.data.description || null,
+    },
+  });
+
+  revalidatePath(`/projects/${entry.projectId}`);
+}
+
+export async function deleteTimeEntry(formData: FormData) {
+  const parsed = deleteTimeEntrySchema.safeParse({
+    timeEntryId: formData.get("timeEntryId"),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+
+  const entry = await assertCanManageTimeEntry(parsed.data.timeEntryId);
+
+  await prisma.timeEntry.delete({ where: { id: parsed.data.timeEntryId } });
+
+  revalidatePath(`/projects/${entry.projectId}`);
 }

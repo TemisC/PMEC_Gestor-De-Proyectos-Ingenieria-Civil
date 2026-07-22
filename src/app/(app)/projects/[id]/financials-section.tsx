@@ -1,12 +1,18 @@
 import {
   addAdditional,
   addPlannedInvoice,
+  deleteAdditional,
+  deleteInvoice,
+  deletePlannedInvoice,
   promotePlannedInvoice,
   setAgreement,
   setMemberRate,
+  updateAdditional,
+  updateInvoice,
+  updatePlannedInvoice,
 } from "@/app/(app)/projects/financial-actions";
 import { Card } from "@/components/ui/card";
-import { AlertIcon } from "@/components/ui/icons";
+import { AlertIcon, TrashIcon } from "@/components/ui/icons";
 
 type Money = number;
 
@@ -138,11 +144,31 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           Adicionales ({props.additionals.length})
         </h3>
         <ul className="flex flex-col gap-1">
-          {props.additionals.map((a) => (
-            <li key={a.id} className="text-sm">
-              {a.description} — {money(a.amount)}
-            </li>
-          ))}
+          {props.additionals.map((a) =>
+            canEdit ? (
+              <li key={a.id} className="flex flex-wrap items-end gap-2">
+                <form action={updateAdditional} className="flex flex-wrap items-end gap-2">
+                  <input type="hidden" name="additionalId" value={a.id} />
+                  <Field label="Descripción" name="description" defaultValue={a.description} />
+                  <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={a.amount} />
+                  <SubmitButton small>Guardar</SubmitButton>
+                </form>
+                <form action={deleteAdditional}>
+                  <input type="hidden" name="additionalId" value={a.id} />
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" /> Eliminar
+                  </button>
+                </form>
+              </li>
+            ) : (
+              <li key={a.id} className="text-sm">
+                {a.description} — {money(a.amount)}
+              </li>
+            ),
+          )}
         </ul>
         {canEdit && (
           <form action={addAdditional} className="flex flex-wrap items-end gap-2">
@@ -159,25 +185,44 @@ export function FinancialsSection(props: FinancialsSectionProps) {
         <h3 className="text-xs font-medium text-gray-400">
           Previsión de facturación ({props.plannedInvoices.length})
         </h3>
-        <ul className="flex flex-col gap-1">
-          {props.plannedInvoices.map((p) => (
-            <li key={p.id} className="flex items-center justify-between text-sm">
-              <span>
-                {fmtDate(p.date)} — {p.description} — {money(p.amount)}{" "}
-                {p.invoiced ? (
-                  <span className="text-green-400">(facturada)</span>
-                ) : (
-                  <span className="text-gray-400">(pendiente)</span>
-                )}
-              </span>
-              {canEdit && !p.invoiced && (
+        <ul className="flex flex-col gap-2">
+          {props.plannedInvoices.map((p) =>
+            canEdit && !p.invoiced ? (
+              <li key={p.id} className="flex flex-wrap items-end gap-2">
+                <form action={updatePlannedInvoice} className="flex flex-wrap items-end gap-2">
+                  <input type="hidden" name="plannedInvoiceId" value={p.id} />
+                  <Field label="Descripción" name="description" defaultValue={p.description} />
+                  <Field label="Fecha" name="date" type="date" defaultValue={fmtDate(p.date)} />
+                  <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={p.amount} />
+                  <SubmitButton small>Guardar</SubmitButton>
+                </form>
                 <form action={promotePlannedInvoice}>
                   <input type="hidden" name="plannedInvoiceId" value={p.id} />
                   <SubmitButton small>Marcar facturada</SubmitButton>
                 </form>
-              )}
-            </li>
-          ))}
+                <form action={deletePlannedInvoice}>
+                  <input type="hidden" name="plannedInvoiceId" value={p.id} />
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" /> Eliminar
+                  </button>
+                </form>
+              </li>
+            ) : (
+              <li key={p.id} className="flex items-center justify-between text-sm">
+                <span>
+                  {fmtDate(p.date)} — {p.description} — {money(p.amount)}{" "}
+                  {p.invoiced ? (
+                    <span className="text-green-400">(facturada)</span>
+                  ) : (
+                    <span className="text-gray-400">(pendiente)</span>
+                  )}
+                </span>
+              </li>
+            ),
+          )}
         </ul>
         {canEdit && (
           <form action={addPlannedInvoice} className="flex flex-wrap items-end gap-2">
@@ -198,12 +243,33 @@ export function FinancialsSection(props: FinancialsSectionProps) {
         {props.invoices.length === 0 ? (
           <p className="text-sm text-gray-400">Todavía no hay facturas emitidas.</p>
         ) : (
-          <ul className="flex flex-col gap-1">
-            {props.invoices.map((inv) => (
-              <li key={inv.id} className="text-sm">
-                {fmtDate(inv.date)} — {money(inv.amount)}
-              </li>
-            ))}
+          <ul className="flex flex-col gap-2">
+            {props.invoices.map((inv) =>
+              canEdit ? (
+                <li key={inv.id} className="flex flex-wrap items-end gap-2">
+                  <form action={updateInvoice} className="flex flex-wrap items-end gap-2">
+                    <input type="hidden" name="invoiceId" value={inv.id} />
+                    <Field label="Fecha" name="date" type="date" defaultValue={fmtDate(inv.date)} />
+                    <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={inv.amount} />
+                    <Field label="URL PDF" name="pdfUrl" defaultValue={inv.pdfUrl ?? ""} />
+                    <SubmitButton small>Guardar</SubmitButton>
+                  </form>
+                  <form action={deleteInvoice}>
+                    <input type="hidden" name="invoiceId" value={inv.id} />
+                    <button
+                      type="submit"
+                      className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
+                    >
+                      <TrashIcon className="h-3.5 w-3.5" /> Eliminar
+                    </button>
+                  </form>
+                </li>
+              ) : (
+                <li key={inv.id} className="text-sm">
+                  {fmtDate(inv.date)} — {money(inv.amount)}
+                </li>
+              ),
+            )}
           </ul>
         )}
       </div>
