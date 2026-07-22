@@ -25,6 +25,14 @@ async function upsertDemoUser(
   });
 }
 
+async function upsertDemoClient(name: string) {
+  return prisma.client.upsert({
+    where: { name },
+    update: {},
+    create: { name },
+  });
+}
+
 async function main() {
   await upsertDemoUser("gerencia@pmec.local", "Gerencia Demo", Role.GERENCIA);
   const gestor = await upsertDemoUser(
@@ -39,15 +47,21 @@ async function main() {
     25, // tarifa hora por defecto
   );
 
+  // Clientes: catálogo global (mismos nombres que ya existían como
+  // texto libre antes de la migración a entidad — se reutilizan, no se
+  // duplican).
+  const clientePrueba = await upsertDemoClient("Cliente de prueba");
+  const clienteBeta = await upsertDemoClient("Cliente Beta");
+
   // --- Proyecto 1: sano, con facturación previsional y una factura ya
   // emitida (para mostrar previsión vs. real) ---
   const project1 = await prisma.project.upsert({
     where: { id: "seed-project-1" },
-    update: { managerId: gestor.id },
+    update: { managerId: gestor.id, clientId: clientePrueba.id },
     create: {
       id: "seed-project-1",
       name: "Proyecto de prueba",
-      client: "Cliente de prueba",
+      clientId: clientePrueba.id,
       managerId: gestor.id,
     },
   });
@@ -155,11 +169,11 @@ async function main() {
   // se vea con datos reales, no solo en la teoría ---
   const project2 = await prisma.project.upsert({
     where: { id: "seed-project-2" },
-    update: { managerId: gestor.id },
+    update: { managerId: gestor.id, clientId: clienteBeta.id },
     create: {
       id: "seed-project-2",
       name: "Ampliación planta Beta",
-      client: "Cliente Beta",
+      clientId: clienteBeta.id,
       managerId: gestor.id,
     },
   });

@@ -70,6 +70,14 @@ export function canManageUsers(user: AuthUser): boolean {
   return user.role === Role.GERENCIA;
 }
 
+// Clientes: catálogo GLOBAL de Deltana (sección 2 del plan —
+// "catálogos compartidos... evita que dos consultores dupliquen el
+// mismo cliente"), no algo scoped a un Gestor. Colaborador no lo
+// necesita (su mundo es solo sus proyectos asignados y cargar horas).
+export function canAccessClients(user: AuthUser): boolean {
+  return user.role === Role.GERENCIA || user.role === Role.GESTOR;
+}
+
 // Etapa 4: helper para construir un AuthProject a partir de lo que
 // devuelve Prisma (`project.findUnique({ include: { members: true } })`)
 // — un solo lugar donde se hace el mapeo, en vez de repetirlo en cada

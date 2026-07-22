@@ -5,7 +5,10 @@ import { z } from "zod";
 
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
-  client: z.string().trim().max(200).optional().or(z.literal("")),
+  // Cliente existente (select) o nombre de uno nuevo (texto) — si viene
+  // texto nuevo, tiene prioridad y se crea/reutiliza ese Client global.
+  clientId: z.string().optional().or(z.literal("")),
+  newClientName: z.string().trim().max(200).optional().or(z.literal("")),
 });
 
 export const addProjectMemberSchema = z.object({
@@ -92,6 +95,33 @@ export const addExternalPaymentSchema = z.object({
   date: z.coerce.date(),
   amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
   description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+// --- Clientes (catálogo global de Deltana) ---
+
+const optionalEmail = z
+  .string()
+  .trim()
+  .max(200)
+  .optional()
+  .or(z.literal(""))
+  .refine((v) => !v || z.string().email().safeParse(v).success, "Email inválido");
+
+export const createClientSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  generalContactName: z.string().trim().max(200).optional().or(z.literal("")),
+  generalContactEmail: optionalEmail,
+  generalContactPhone: z.string().trim().max(50).optional().or(z.literal("")),
+});
+
+export const clientContactTypeSchema = z.enum(["TECHNICAL", "ECONOMIC"]);
+
+export const addClientContactSchema = z.object({
+  clientId: z.string().min(1),
+  type: clientContactTypeSchema,
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  email: optionalEmail,
+  phone: z.string().trim().max(50).optional().or(z.literal("")),
 });
 
 // --- Gestión de usuarios (Admin queda fuera del MVP, lo hace Gerencia) ---

@@ -29,6 +29,47 @@ enum InvoiceSource {
   ADDITIONAL
 }
 
+enum ClientContactType {
+  TECHNICAL
+  ECONOMIC
+}
+
+// Cliente — entidad GLOBAL de toda Deltana, no de un Gestor en
+// particular (mismo criterio que colaboradores/tarifas — sección 2 del
+// plan: "catálogos compartidos... evita que dos consultores dupliquen
+// el mismo cliente"). Cualquier Gestor/Gerencia puede verlo y crear
+// proyectos contra él; el detalle financiero de cada proyecto sigue
+// restringido como siempre.
+model Client {
+  id   String @id @default(cuid())
+  name String @unique
+
+  generalContactName  String?
+  generalContactEmail String?
+  generalContactPhone String?
+
+  contacts ClientContact[]
+  projects Project[]
+
+  createdAt DateTime @default(now())
+}
+
+// Contactos técnicos/económicos del cliente — mismo concepto que
+// technicalContacts/economicContacts del SPA original (para saber a
+// quién escribirle según si es una consulta técnica o de facturación).
+model ClientContact {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  type  ClientContactType
+  name  String
+  email String?
+  phone String?
+
+  createdAt DateTime @default(now())
+}
+
 model User {
   id                String  @id @default(cuid())
   email             String  @unique
@@ -48,9 +89,11 @@ model User {
 }
 
 model Project {
-  id     String  @id @default(cuid())
-  name   String
-  client String?
+  id   String @id @default(cuid())
+  name String
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
 
   managerId String
   manager   User   @relation("ProjectManager", fields: [managerId], references: [id])

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { Role } from "@/generated/prisma/enums";
 import { createProject } from "@/app/(app)/projects/actions";
 import { Card } from "@/components/ui/card";
@@ -11,6 +12,11 @@ export default async function NewProjectPage() {
     // profundidad, la Server Action vuelve a chequear esto igual.
     redirect("/dashboard");
   }
+
+  // Clientes: catálogo global (sección 2 del plan) — se ofrece elegir uno
+  // existente o escribir el nombre de uno nuevo, nunca duplicado por
+  // Gestor.
+  const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6">
@@ -28,16 +34,39 @@ export default async function NewProjectPage() {
               className="rounded-md border border-gray-700 bg-gray-900/60 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
             />
           </div>
+
+          {clients.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label htmlFor="clientId" className="text-xs font-medium text-gray-400">
+                Cliente existente
+              </label>
+              <select
+                id="clientId"
+                name="clientId"
+                className="rounded-md border border-gray-700 bg-gray-900/60 px-3 py-2 text-sm text-white"
+              >
+                <option value="">— Ninguno —</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1">
-            <label htmlFor="client" className="text-xs font-medium text-gray-400">
-              Cliente (opcional por ahora)
+            <label htmlFor="newClientName" className="text-xs font-medium text-gray-400">
+              O cliente nuevo (si no está en la lista de arriba)
             </label>
             <input
-              id="client"
-              name="client"
+              id="newClientName"
+              name="newClientName"
+              placeholder="Nombre del cliente"
               className="rounded-md border border-gray-700 bg-gray-900/60 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
             />
           </div>
+
           <button
             type="submit"
             className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-400"

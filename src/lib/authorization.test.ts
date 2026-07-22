@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Role } from "@/generated/prisma/enums";
 import {
+  canAccessClients,
   canLogTimeEntry,
   canManageProject,
   canManageUsers,
@@ -122,5 +123,20 @@ describe("canManageUsers", () => {
 
   it("un Colaborador no puede crear usuarios", () => {
     expect(canManageUsers(colaboradorAsignado)).toBe(false);
+  });
+});
+
+describe("canAccessClients", () => {
+  it("Gerencia accede al catálogo de clientes", () => {
+    expect(canAccessClients(gerencia)).toBe(true);
+  });
+
+  it("cualquier Gestor accede (es un catálogo global, no por Gestor)", () => {
+    expect(canAccessClients(gestorA)).toBe(true);
+    expect(canAccessClients(gestorB)).toBe(true);
+  });
+
+  it("un Colaborador no accede al catálogo de clientes", () => {
+    expect(canAccessClients(colaboradorAsignado)).toBe(false);
   });
 });

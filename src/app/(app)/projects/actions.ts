@@ -32,16 +32,30 @@ export async function createProject(formData: FormData) {
 
   const parsed = createProjectSchema.safeParse({
     name: formData.get("name"),
-    client: formData.get("client"),
+    clientId: formData.get("clientId"),
+    newClientName: formData.get("newClientName"),
   });
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? "Datos inválidos");
   }
 
+  // Cliente global (sección 2 del plan): si se escribió un nombre nuevo,
+  // se reutiliza el existente con ese nombre o se crea uno — nunca se
+  // duplica por typo/mayúsculas exactas coincidentes.
+  let clientId: string | null = parsed.data.clientId || null;
+  if (parsed.data.newClientName) {
+    const client = await prisma.client.upsert({
+      where: { name: parsed.data.newClientName },
+      update: {},
+      create: { name: parsed.data.newClientName },
+    });
+    clientId = client.id;
+  }
+
   const project = await prisma.project.create({
     data: {
       name: parsed.data.name,
-      client: parsed.data.client || null,
+      clientId,
       managerId: userId,
     },
   });

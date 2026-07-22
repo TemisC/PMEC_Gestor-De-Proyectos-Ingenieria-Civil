@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/generated/prisma/enums";
 import {
+  canAccessClients,
   canLogTimeEntry,
   canManageProject,
   canViewAllTimeEntries,
@@ -48,6 +49,7 @@ export default async function ProjectDetailPage({
     where: { id },
     include: {
       manager: true,
+      client: true,
       members: { include: { user: true } },
       timeEntries: { include: { user: true }, orderBy: { date: "desc" } },
       agreement: true,
@@ -120,8 +122,22 @@ export default async function ProjectDetailPage({
         </Link>
         <h1 className="text-2xl font-bold text-white">{project.name}</h1>
         <p className="text-sm text-gray-400">
-          Cliente: {project.client ?? "—"} · Gestor:{" "}
-          {project.manager.name ?? project.manager.email}
+          Cliente:{" "}
+          {project.client ? (
+            canAccessClients(authUser) ? (
+              <Link
+                href={`/clients/${project.client.id}`}
+                className="text-sky-400 hover:underline"
+              >
+                {project.client.name}
+              </Link>
+            ) : (
+              project.client.name
+            )
+          ) : (
+            "—"
+          )}{" "}
+          · Gestor: {project.manager.name ?? project.manager.email}
         </p>
       </div>
 
