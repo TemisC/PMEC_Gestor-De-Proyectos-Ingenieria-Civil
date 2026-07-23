@@ -219,6 +219,30 @@ export const addClientContactSchema = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
 });
 
+export const updateClientSchema = z.object({
+  clientId: z.string().min(1),
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  generalContactName: z.string().trim().max(200).optional().or(z.literal("")),
+  generalContactEmail: optionalEmail,
+  generalContactPhone: z.string().trim().max(50).optional().or(z.literal("")),
+});
+
+export const deleteClientSchema = z.object({
+  clientId: z.string().min(1),
+});
+
+export const updateClientContactSchema = z.object({
+  contactId: z.string().min(1),
+  type: clientContactTypeSchema,
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  email: optionalEmail,
+  phone: z.string().trim().max(50).optional().or(z.literal("")),
+});
+
+export const deleteClientContactSchema = z.object({
+  contactId: z.string().min(1),
+});
+
 // --- Gestión de usuarios (Admin queda fuera del MVP, lo hace Gerencia) ---
 
 export const roleSchema = z.enum(["GERENCIA", "GESTOR", "COLABORADOR"]);
