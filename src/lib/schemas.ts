@@ -254,3 +254,22 @@ export const createUserSchema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres"),
   defaultHourlyRate: z.coerce.number().nonnegative().optional().or(z.literal("")),
 });
+
+export const updateUserSchema = z.object({
+  userId: z.string().min(1),
+  email: z.string().trim().toLowerCase().email("Email inválido"),
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  role: roleSchema,
+  defaultHourlyRate: z.coerce.number().nonnegative().optional().or(z.literal("")),
+});
+
+export const toggleUserActiveSchema = z.object({
+  userId: z.string().min(1),
+  active: z
+    .string()
+    .transform((v) => v === "true"),
+});
+
+export const deleteUserSchema = z.object({
+  userId: z.string().min(1),
+});
