@@ -105,14 +105,22 @@ Decisiones ya acordadas con el usuario (no reabrir salvo que cambien las condici
 >   - **Migración** (`add_project_status`) fue no destructiva y corrió normal (`prisma migrate dev`), sin necesitar el workaround de SQL a mano de la migración de `Client`.
 > - Último commit pusheado: `eff5e64`.
 >
-> **Pendiente explícito para retomar (al 2026-07-23 sesión 2):**
-> 1. **Usuarios: editar y borrar** — el próximo paso natural (ver corte de sesión 2 más arriba).
-> 2. **Etapa 0 (validación de la lógica financiera con quien la diseñó)** — sigue sin resolver, cada vez más urgente porque ya hay números de rentabilidad reales en pantalla (ver Nota v1.10).
-> 3. Decisión de hosting final (VPS vs. gestionado) — sin resolver, no bloquea nada.
-> 4. Odoo — sin resolver, no bloquea nada.
-> 5. La limitación de `Invoice`/`PlannedInvoice` sin FK de vuelta — no urgente, pero anotada.
+> **Corte del 2026-07-23 (sesión 3) — Usuarios de punta a punta:** se completó edición/desactivación/borrado de usuarios, cerrando la paridad con Proyectos y Clientes. **Lo que se agregó:**
+> - `User.active Boolean @default(true)`: soft-delete análogo a "Archivar" en proyectos. Migración no destructiva (`ADD COLUMN ... DEFAULT true`) creada a mano en `prisma/migrations/20260723000000_add_user_active/migration.sql` — Vercel la aplica en el próximo deploy.
+> - `auth.ts`: rechaza login si `user.active === false` — usuario desactivado no puede entrar.
+> - `updateUser`: edita nombre/email/rol/tarifa. Protección: no puede cambiar su propio rol de Gerencia si es el único Gerencia activo.
+> - `toggleUserActive`: desactivar/reactivar cualquier usuario distinto a uno mismo. Protección: no puede desactivar al último Gerencia activo.
+> - `deleteUser`: solo si el usuario no tiene proyectos gestionados, asignaciones ni entradas de horas — la UI muestra el conteo (Np/Na/Nh) como referencia sin botón de eliminar.
+> - `/users/page.tsx`: inline edit form por fila (nombre/email/rol/tarifa) + badge "Inactivo" + botones Desactivar/Reactivar. Usuarios inactivos aparecen al final con opacidad reducida. Vos mismo marcado con "(vos)" sin botón de desactivar propio.
+> - Typecheck limpio, 43 tests en verde. Último commit: `43bf845`.
 >
-> **Próximo paso sugerido al retomar:** editar/borrar en `/users` (Gerencia puede crear pero no corregir nombre/rol ni desactivar usuarios todavía), o confirmar con el usuario si ya es momento de mostrárselo a Deltana.
+> **Pendiente explícito para retomar:**
+> 1. **Etapa 0 (validación de la lógica financiera con quien la diseñó)** — sigue sin resolver, cada vez más urgente porque ya hay números de rentabilidad reales en pantalla (ver Nota v1.10).
+> 2. Decisión de hosting final (VPS vs. gestionado) — sin resolver, no bloquea nada.
+> 3. Odoo — sin resolver, no bloquea nada.
+> 4. La limitación de `Invoice`/`PlannedInvoice` sin FK de vuelta — no urgente, pero anotada.
+>
+> **Próximo paso sugerido al retomar:** con Proyectos, Clientes y Usuarios todos con CRUD completo, la app está funcionalmente completa en lo que se había planificado. Opciones: (a) confirmar con el usuario si ya es momento de mostrárselo a Deltana, (b) pulir UX/feedback de errores en los formularios, o (c) avanzar con la Etapa 0 (validación de fórmulas financieras).
 >
 > **Corte del 2026-07-23 (mismo día, sesión siguiente) — cambio de máquina/red:** el usuario detectó que la red interna de la empresa (Quanam) bloquea los puertos de Postgres hacia Supabase (5432/6543) — confirmado en vivo (DNS y HTTPS/443 funcionan, esos dos puertos dan timeout). En vez de usar un Postgres local temporal, el usuario prefirió **verificar que todo esté al día en GitHub y mover este documento + los gotchas técnicos dentro del repo** (antes vivían solo en la carpeta local fuera de git y en la memoria del asistente, ninguna de las dos viaja a otra máquina) para retomar desde otra computadora/red sin perder contexto. Se movió `plan_maestro.md` a la raíz de `pmec/` (antes estaba un nivel arriba, fuera de cualquier repo git) y se creó `docs/gotchas.md` con los bugs técnicos reales ya resueltos, referenciado desde `AGENTS.md`. **No se tocó código ni base de datos en esta sesión** — es puramente un commit de continuidad/documentación. Ver la sección "Cómo continuar en otra máquina/red" al principio de este archivo para los pasos exactos de arranque.
 >
