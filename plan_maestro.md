@@ -105,15 +105,32 @@ Decisiones ya acordadas con el usuario (no reabrir salvo que cambien las condici
 >   - **Migración** (`add_project_status`) fue no destructiva y corrió normal (`prisma migrate dev`), sin necesitar el workaround de SQL a mano de la migración de `Client`.
 > - Último commit pusheado: `eff5e64`.
 >
-> **Pendiente explícito para retomar:**
-> 1. **Etapa 0 (validación de la lógica financiera con quien la diseñó)** — sigue sin resolver, cada vez más urgente porque ya hay números de rentabilidad reales en pantalla (ver Nota v1.10).
-> 2. Decisión de hosting final (VPS vs. gestionado) — sin resolver, no bloquea nada de lo anterior.
-> 3. Odoo — sin resolver, no bloquea nada de lo anterior.
-> 4. La limitación de `Invoice`/`PlannedInvoice` sin FK de vuelta (arriba) — no urgente, pero anotada.
+> **Pendiente explícito para retomar (al 2026-07-23 sesión 2):**
+> 1. **Usuarios: editar y borrar** — el próximo paso natural (ver corte de sesión 2 más arriba).
+> 2. **Etapa 0 (validación de la lógica financiera con quien la diseñó)** — sigue sin resolver, cada vez más urgente porque ya hay números de rentabilidad reales en pantalla (ver Nota v1.10).
+> 3. Decisión de hosting final (VPS vs. gestionado) — sin resolver, no bloquea nada.
+> 4. Odoo — sin resolver, no bloquea nada.
+> 5. La limitación de `Invoice`/`PlannedInvoice` sin FK de vuelta — no urgente, pero anotada.
 >
-> **Próximo paso sugerido al retomar:** con la gestión de proyecto ya de punta a punta, el próximo salto natural de funcionalidad sería revisar qué le falta a "Usuarios"/"Clientes" en el mismo sentido (editar/borrar), o directamente confirmar con el usuario si ya es momento de mostrárselo a Deltana tal como está.
+> **Próximo paso sugerido al retomar:** editar/borrar en `/users` (Gerencia puede crear pero no corregir nombre/rol ni desactivar usuarios todavía), o confirmar con el usuario si ya es momento de mostrárselo a Deltana.
 >
 > **Corte del 2026-07-23 (mismo día, sesión siguiente) — cambio de máquina/red:** el usuario detectó que la red interna de la empresa (Quanam) bloquea los puertos de Postgres hacia Supabase (5432/6543) — confirmado en vivo (DNS y HTTPS/443 funcionan, esos dos puertos dan timeout). En vez de usar un Postgres local temporal, el usuario prefirió **verificar que todo esté al día en GitHub y mover este documento + los gotchas técnicos dentro del repo** (antes vivían solo en la carpeta local fuera de git y en la memoria del asistente, ninguna de las dos viaja a otra máquina) para retomar desde otra computadora/red sin perder contexto. Se movió `plan_maestro.md` a la raíz de `pmec/` (antes estaba un nivel arriba, fuera de cualquier repo git) y se creó `docs/gotchas.md` con los bugs técnicos reales ya resueltos, referenciado desde `AGENTS.md`. **No se tocó código ni base de datos en esta sesión** — es puramente un commit de continuidad/documentación. Ver la sección "Cómo continuar en otra máquina/red" al principio de este archivo para los pasos exactos de arranque.
+>
+> **Corte del 2026-07-23 (sesión 2) — Clientes de punta a punta:** se completó edición/borrado de clientes y contactos, cerrando la paridad con Proyectos. **Lo que se agregó:**
+> - `updateClient` / `deleteClient` (bloqueado server-side si el cliente tiene proyectos asociados; muestra el conteo y deshabilita el botón en la UI sin posibilidad de bypass).
+> - `updateClientContact` / `deleteClientContact` — edición inline en la ficha del cliente, mismo patrón que el resto del app.
+> - Esquemas Zod para las 4 operaciones nuevas en `src/lib/schemas.ts`.
+> - Fix de vulnerabilidades npm: `next` → 16.2.11, `@auth/core` → 0.41.3 (3 CVEs críticos de Auth.js resueltos), y `overrides` en `package.json` para `postcss`/`sharp` embebidos en Next.js — resultado: 0 vulnerabilidades en `npm audit --audit-level=high`. También se instalaron las dependencias (node_modules no existían en la nueva máquina).
+> - Typecheck limpio, 43 tests en verde, 0 vulnerabilidades.
+> - **Nota sobre autorización en Clientes:** `updateClient`, `deleteClient`, `updateClientContact` y `deleteClientContact` usan el mismo `canAccessClients` (Gestor + Gerencia) — no hay diferencia entre "quién puede ver" y "quién puede editar" en el catálogo global, igual que ya ocurría con `createClient`. Colaborador nunca accede a esta sección.
+> - Último commit: `92215d2`.
+>
+> **Pendiente explícito para retomar:**
+> 1. **Usuarios: editar y borrar** (`/users` — análogo a lo que se hizo con Clientes hoy). Gerencia puede crear usuarios pero no editarlos ni borrarlos todavía.
+> 2. **Etapa 0 (validación de la lógica financiera con quien la diseñó)** — sigue sin resolver, cada vez más urgente.
+> 3. Decisión de hosting final, Odoo, limitación Invoice/PlannedInvoice — sin cambios.
+>
+> **Próximo paso sugerido:** cerrar Usuarios (editar nombre/email/rol/tarifa + borrar/desactivar) o bien confirmar si ya es momento de mostrárselo a Deltana.
 
 Objetivo del MVP: tener algo **desplegado y tangible en Vercel + Supabase (tiers gratuitos, costo cero)** lo antes posible, para mostrarle a Deltana y conseguir la aprobación de que se siga invirtiendo tiempo en el resto del alcance. No es un prototipo descartable — es la base real sobre la que se sigue construyendo (Etapas 2 en adelante de la sección 11), pero acotada a lo mínimo indispensable para que sea demostrable.
 
