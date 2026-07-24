@@ -98,3 +98,87 @@ export function isMarginAtRisk(
 ): boolean {
   return profitPercentage < targetPercentage;
 }
+
+// ── Cashflow mensual (sección 4.1 del plan) ──────────────────────────────
+
+export type CashflowRow = {
+  month: string;       // "YYYY-MM" — clave de ordenamiento
+  label: string;       // "Ene 2026" — para mostrar al usuario
+  cobrado: number;     // Invoice.amount en ese mes
+  previsto: number;    // PlannedInvoice.amount NO facturado aún en ese mes
+  costeInterno: number;
+  costeExterno: number;
+};
+
+const MONTH_NAMES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
+function toMonthKey(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function monthLabel(ym: string): string {
+  const [y, m] = ym.split("-");
+  return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
+}
+
+function fillMonthRange(from: string, to: string): string[] {
+  const result: string[] = [];
+  let [y, m] = from.split("-").map(Number);
+  const [toY, toM] = to.split("-").map(Number);
+  while (y < toY || (y === toY && m <= toM)) {
+    result.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return result;
+}
+
+export function buildCashflowByMonth(params: {
+  plannedInvoices: { date: Date; amount: number; invoiced: boolean }[];
+  invoices: { date: Date; amount: number }[];
+  timeEntries: { date: Date; hours: number; userId: string }[];
+  rateByUserId: Map<string, number>;
+  externalPayments: { date: Date; amount: number }[];
+}): CashflowRow[] {
+  const { plannedInvoices, invoices, timeEntries, rateByUserId, externalPayments } = params;
+
+  const data = new Map<string, Omit<CashflowRow, "month" | "label">>();
+  const ensure = (k: string) => {
+    if (!data.has(k)) data.set(k, { cobrado: 0, previsto: 0, costeInterno: 0, costeExterno: 0 });
+    return data.get(k)!;
+  };
+
+  for (const inv of invoices) {
+    const row = ensure(toMonthKey(inv.date));
+    row.cobrado += inv.amount;
+  }
+  for (const pi of plannedInvoices) {
+    if (!pi.invoiced) {
+      const row = ensure(toMonthKey(pi.date));
+      row.previsto += pi.amount;
+    }
+  }
+  for (const te of timeEntries) {
+    const rate = rateByUserId.get(te.userId) ?? 0;
+    if (rate > 0) {
+      const row = ensure(toMonthKey(te.date));
+      row.costeInterno += te.hours * rate;
+    }
+  }
+  for (const pay of externalPayments) {
+    const row = ensure(toMonthKey(pay.date));
+    row.costeExterno += pay.amount;
+  }
+
+  if (data.size === 0) return [];
+
+  const keys = [...data.keys()].sort();
+  const months = fillMonthRange(keys[0], keys[keys.length - 1]);
+
+  return months.map((month) => {
+    const d = data.get(month) ?? { cobrado: 0, previsto: 0, costeInterno: 0, costeExterno: 0 };
+    return { month, label: monthLabel(month), ...d };
+  });
+}

@@ -13,6 +13,7 @@ import {
   toAuthProject,
 } from "@/lib/authorization";
 import {
+  buildCashflowByMonth,
   calculateExternalCost,
   calculateInternalCost,
   calculatePendingBilling,
@@ -36,6 +37,7 @@ import { Card } from "@/components/ui/card";
 import { TrashIcon } from "@/components/ui/icons";
 import { FinancialsSection } from "./financials-section";
 import { ExternalCollaboratorsSection } from "./external-collaborators-section";
+import { CashflowSection } from "./cashflow-section";
 
 export default async function ProjectDetailPage({
   params,
@@ -125,6 +127,14 @@ export default async function ProjectDetailPage({
   const profit = calculateProfit(totalBudget, internalCost, externalCost);
   const profitPercentage = calculateProfitPercentage(profit, totalBudget);
   const atRisk = isMarginAtRisk(profitPercentage);
+
+  const cashflowRows = buildCashflowByMonth({
+    plannedInvoices: project.plannedInvoices,
+    invoices: project.invoices,
+    timeEntries: project.timeEntries,
+    rateByUserId,
+    externalPayments: project.externalCollaborators.flatMap((c) => c.payments),
+  });
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -254,6 +264,8 @@ export default async function ProjectDetailPage({
           collaborators={project.externalCollaborators}
         />
       )}
+
+      {canSeeFinancials && <CashflowSection rows={cashflowRows} />}
 
       {canManage && (
         <Card className="flex flex-col gap-3">
