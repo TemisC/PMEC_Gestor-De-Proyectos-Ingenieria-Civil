@@ -120,7 +120,17 @@ Decisiones ya acordadas con el usuario (no reabrir salvo que cambien las condici
 > 3. Odoo — sin resolver, no bloquea nada.
 > 4. La limitación de `Invoice`/`PlannedInvoice` sin FK de vuelta — no urgente, pero anotada.
 >
-> **Próximo paso sugerido al retomar:** con Proyectos, Clientes y Usuarios todos con CRUD completo, la app está funcionalmente completa en lo que se había planificado. Opciones: (a) confirmar con el usuario si ya es momento de mostrárselo a Deltana, (b) pulir UX/feedback de errores en los formularios, o (c) avanzar con la Etapa 0 (validación de fórmulas financieras).
+> **Corte del 2026-07-24 (sesión 4) — Dashboard ejecutivo de Gerencia:** se reescribió completamente la vista de Gerencia como un dashboard ejecutivo real, separado de las vistas de Gestor y Colaborador. **Lo que se agregó:**
+> - 4 KPIs en grid: presupuesto cartera, facturado total, margen ponderado de cartera, proyectos en riesgo.
+> - Sección destacada de proyectos en riesgo (fondo rojo, solo aparece si hay alguno), con presupuesto y margen por proyecto.
+> - Ranking de Gestores: nombre, # proyectos, presupuesto total, margen promedio. Ordenado de peor a mejor (el problema primero).
+> - Cartera completa ordenada por margen ascendente (peor primero), mostrando gestor, cliente, presupuesto, facturado y %. Proyectos sin presupuesto van al fondo.
+> - Vista de Gestor: mejorada con 3 KPIs (proyectos activos, presupuesto total, en riesgo).
+> - Nuevos íconos: `ReceiptIcon`, `PercentIcon`.
+> - Fix estructural: Vercel ahora corre `npx prisma migrate deploy && next build` — las migraciones futuras se aplican solas en cada deploy.
+> - Typecheck limpio, 43 tests en verde. Último commit: `475c5db`.
+>
+> **Próximo paso sugerido:** seguir con el ítem #5 del roadmap PRO (Panel de cashflow proyectado vs. real), o el #6 (Paginación/búsqueda/filtro en listas).
 >
 > **Corte del 2026-07-23 (mismo día, sesión siguiente) — cambio de máquina/red:** el usuario detectó que la red interna de la empresa (Quanam) bloquea los puertos de Postgres hacia Supabase (5432/6543) — confirmado en vivo (DNS y HTTPS/443 funcionan, esos dos puertos dan timeout). En vez de usar un Postgres local temporal, el usuario prefirió **verificar que todo esté al día en GitHub y mover este documento + los gotchas técnicos dentro del repo** (antes vivían solo en la carpeta local fuera de git y en la memoria del asistente, ninguna de las dos viaja a otra máquina) para retomar desde otra computadora/red sin perder contexto. Se movió `plan_maestro.md` a la raíz de `pmec/` (antes estaba un nivel arriba, fuera de cualquier repo git) y se creó `docs/gotchas.md` con los bugs técnicos reales ya resueltos, referenciado desde `AGENTS.md`. **No se tocó código ni base de datos en esta sesión** — es puramente un commit de continuidad/documentación. Ver la sección "Cómo continuar en otra máquina/red" al principio de este archivo para los pasos exactos de arranque.
 >
