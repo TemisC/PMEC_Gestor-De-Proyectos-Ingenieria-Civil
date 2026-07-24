@@ -158,6 +158,14 @@ export default async function ProjectDetailPage({
               Archivado
             </span>
           )}
+          {canSeeFinancials && (
+            <a
+              href={`/projects/${project.id}/report`}
+              className="ml-auto rounded-md border border-gray-700 px-2 py-0.5 text-xs text-gray-300 hover:border-sky-500 hover:text-sky-400"
+            >
+              Descargar PDF
+            </a>
+          )}
         </div>
         <p className="text-sm text-gray-400">
           Cliente:{" "}

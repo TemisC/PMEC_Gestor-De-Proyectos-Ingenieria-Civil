@@ -163,7 +163,16 @@ Decisiones ya acordadas con el usuario (no reabrir salvo que cambien las condici
 > - #7 (Row-Level Security) descartado por ahora: la autorización server-side ya está bien cubierta; RLS agrega complejidad sin beneficio proporcional en un stack server-side con PgBouncer en transaction mode.
 > - Typecheck limpio, 52 tests en verde. Último commit: `c440166`.
 >
-> **Próximo paso sugerido:** ítem #9 (Exportar reportes PDF), la Etapa 0 (validar fórmulas financieras con quien las diseñó — urgente), o los ítems críticos diferidos (feedback de error inline en formularios, cambio de contraseña).
+> **Corte del 2026-07-24 (sesión 8) — Exportar PDF (ítem #9):** se implementó la exportación de reportes PDF con `@react-pdf/renderer`. **Lo que se agregó:**
+> - `src/lib/pdf/project-report.tsx`: componente `ProjectReport` — reporte A4 de un proyecto: header PMEC, KPIs financieros en 2 filas (4 métricas c/u), badge de riesgo si aplica, tabla de cashflow mensual con totales, footer con número de página. Paleta sky/dark/green/red.
+> - `src/lib/pdf/portfolio-report.tsx`: componente `PortfolioReport` — cartera completa A4 landscape: 5 KPIs de la empresa, tabla de todos los proyectos ordenados peor margen primero.
+> - `src/app/(app)/projects/[id]/report/route.ts`: Route Handler `GET` — auth (solo Gestor responsable o Gerencia), queries idénticas a la página del proyecto, computa financials + cashflow, llama `renderToBuffer()`, devuelve `application/pdf` con Content-Disposition attachment.
+> - `src/app/(app)/dashboard/report/route.ts`: Route Handler `GET` — auth Gerencia only, computa métricas de cartera, ordena proyectos, devuelve PDF landscape.
+> - Botón **"Descargar PDF"** en la cabecera de cada proyecto (visible si `canSeeFinancials`).
+> - Botón **"Descargar cartera PDF"** en el dashboard ejecutivo de Gerencia (oculto si se está viendo archivados).
+> - Typecheck limpio, 52 tests en verde. Último commit: ver `git log -1`.
+>
+> **Próximo paso sugerido:** la Etapa 0 (validar fórmulas financieras con quien las diseñó — cada vez más urgente ahora que los PDFs muestran números reales), o los ítems críticos diferidos (feedback de error inline en formularios, cambio de contraseña).
 >
 > **Corte del 2026-07-23 (mismo día, sesión siguiente) — cambio de máquina/red:** el usuario detectó que la red interna de la empresa (Quanam) bloquea los puertos de Postgres hacia Supabase (5432/6543) — confirmado en vivo (DNS y HTTPS/443 funcionan, esos dos puertos dan timeout). En vez de usar un Postgres local temporal, el usuario prefirió **verificar que todo esté al día en GitHub y mover este documento + los gotchas técnicos dentro del repo** (antes vivían solo en la carpeta local fuera de git y en la memoria del asistente, ninguna de las dos viaja a otra máquina) para retomar desde otra computadora/red sin perder contexto. Se movió `plan_maestro.md` a la raíz de `pmec/` (antes estaba un nivel arriba, fuera de cualquier repo git) y se creó `docs/gotchas.md` con los bugs técnicos reales ya resueltos, referenciado desde `AGENTS.md`. **No se tocó código ni base de datos en esta sesión** — es puramente un commit de continuidad/documentación. Ver la sección "Cómo continuar en otra máquina/red" al principio de este archivo para los pasos exactos de arranque.
 >

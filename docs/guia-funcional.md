@@ -1,7 +1,7 @@
 # Guía Funcional — PMEC
 
 > **Documento vivo.** Se actualiza cada vez que se agrega o modifica una funcionalidad.
-> Última actualización: 2026-07-23.
+> Última actualización: 2026-07-24.
 
 ---
 
@@ -179,6 +179,28 @@ Muestra todos los usuarios del sistema, separando activos (arriba) e inactivos (
 **Desactivar / Reactivar:** impide que el usuario inicie sesión, pero conserva todo su historial (proyectos, horas). Útil cuando alguien deja la empresa. No se puede desactivar el propio usuario ni al último Gerencia activo.
 
 **Eliminar:** solo disponible cuando el usuario no tiene proyectos gestionados, asignaciones ni entradas de horas. La UI muestra el conteo `Np/Na/Nh` como referencia cuando no se puede eliminar.
+
+---
+
+## Exportar PDF
+
+### Reporte de proyecto (Gestor y Gerencia)
+
+En la cabecera de cada proyecto aparece el botón **"Descargar PDF"** (solo visible para quienes pueden ver datos financieros — Gestor responsable y Gerencia).
+
+El PDF incluye:
+- Nombre del proyecto, cliente, gestor y estado (activo/archivado).
+- **Resumen financiero:** 8 KPIs en 2 filas — presupuesto, facturado, pendiente de facturar, previsto sin facturar, coste interno, coste externo, resultado y margen. El resultado y el margen se muestran en rojo si el proyecto está en riesgo (margen < 50%).
+- **Tabla de cashflow mensual** (si hay datos): cobrado, previsto, coste interno, coste externo y resultado por mes; fila de totales al pie.
+- Número de página en el pie.
+
+### Cartera completa en PDF (solo Gerencia)
+
+En el **Dashboard Ejecutivo** de Gerencia aparece el botón **"Descargar cartera PDF"** (visible solo cuando se está viendo la cartera activa).
+
+El PDF en formato A4 apaisado incluye:
+- Cinco KPIs: proyectos activos, presupuesto de la cartera, facturado total, margen de la cartera, proyectos en riesgo.
+- **Tabla completa de proyectos**, ordenada de menor a mayor margen (los más críticos primero): proyecto, gestor, cliente, presupuesto, facturado, resultado y margen. El resultado y el margen se muestran en rojo si el proyecto está en riesgo.
 
 ---
 

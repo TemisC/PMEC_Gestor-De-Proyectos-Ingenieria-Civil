@@ -149,12 +149,22 @@ export default async function DashboardPage({
     return (
       <div className="flex flex-col gap-6">
         {/* Encabezado */}
-        <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard Ejecutivo</h1>
-          <p className="text-sm text-gray-400">
-            Cartera {showArchived ? "archivada" : "activa"} · {projects.length} proyecto
-            {projects.length !== 1 ? "s" : ""}
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Dashboard Ejecutivo</h1>
+            <p className="text-sm text-gray-400">
+              Cartera {showArchived ? "archivada" : "activa"} · {projects.length} proyecto
+              {projects.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          {!showArchived && (
+            <a
+              href="/dashboard/report"
+              className="shrink-0 rounded-md border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:border-sky-500 hover:text-sky-400"
+            >
+              Descargar cartera PDF
+            </a>
+          )}
         </div>
 
         {/* KPIs */}
