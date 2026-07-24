@@ -15,6 +15,7 @@ import {
   updateExternalCollaboratorSchema,
   updateExternalPaymentSchema,
 } from "@/lib/schemas";
+import { logAction } from "@/lib/audit";
 
 // Colaboradores externos: mismo criterio que el resto de lo financiero
 // (financial-actions.ts) — edición exclusiva del Gestor dueño del
@@ -31,7 +32,7 @@ async function assertCanManage(projectId: string) {
   if (!project || !canManageProject({ id: userId, role: session.user.role }, toAuthProject(project))) {
     throw new Error("No autorizado");
   }
-  return project;
+  return { project, userId, userName: session.user.name ?? session.user.email ?? null };
 }
 
 async function assertCanManageViaCollaborator(externalCollaboratorId: string) {
@@ -39,8 +40,12 @@ async function assertCanManageViaCollaborator(externalCollaboratorId: string) {
     where: { id: externalCollaboratorId },
   });
   if (!collaborator) throw new Error("No encontrado");
-  await assertCanManage(collaborator.projectId);
-  return collaborator;
+  const caller = await assertCanManage(collaborator.projectId);
+  return { collaborator, ...caller };
+}
+
+function money(n: number) {
+  return `$${Math.round(n).toLocaleString("es-AR")}`;
 }
 
 export async function addExternalCollaborator(formData: FormData) {
@@ -54,9 +59,9 @@ export async function addExternalCollaborator(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  await assertCanManage(parsed.data.projectId);
+  const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
-  await prisma.externalCollaborator.create({
+  const rec = await prisma.externalCollaborator.create({
     data: {
       projectId: parsed.data.projectId,
       name: parsed.data.name,
@@ -68,6 +73,15 @@ export async function addExternalCollaborator(formData: FormData) {
           : parsed.data.agreementAmount,
       agreementUrl: parsed.data.agreementUrl || null,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "external_collaborator.create",
+    entityType: "ExternalCollaborator",
+    entityId: rec.id,
+    entityName: parsed.data.name,
+    projectId: parsed.data.projectId,
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
@@ -84,7 +98,7 @@ export async function updateExternalCollaborator(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  const collaborator = await assertCanManageViaCollaborator(
+  const { collaborator, userId, userName } = await assertCanManageViaCollaborator(
     parsed.data.externalCollaboratorId,
   );
 
@@ -102,6 +116,15 @@ export async function updateExternalCollaborator(formData: FormData) {
     },
   });
 
+  await logAction({
+    userId, userName,
+    action: "external_collaborator.update",
+    entityType: "ExternalCollaborator",
+    entityId: parsed.data.externalCollaboratorId,
+    entityName: parsed.data.name,
+    projectId: collaborator.projectId,
+  });
+
   revalidatePath(`/projects/${collaborator.projectId}`);
 }
 
@@ -114,7 +137,7 @@ export async function deleteExternalCollaborator(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  const collaborator = await assertCanManageViaCollaborator(
+  const { collaborator, userId, userName } = await assertCanManageViaCollaborator(
     parsed.data.externalCollaboratorId,
   );
 
@@ -130,6 +153,15 @@ export async function deleteExternalCollaborator(formData: FormData) {
     }),
   ]);
 
+  await logAction({
+    userId, userName,
+    action: "external_collaborator.delete",
+    entityType: "ExternalCollaborator",
+    entityId: parsed.data.externalCollaboratorId,
+    entityName: collaborator.name,
+    projectId: collaborator.projectId,
+  });
+
   revalidatePath(`/projects/${collaborator.projectId}`);
 }
 
@@ -141,16 +173,25 @@ export async function addExternalAdditional(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  const collaborator = await assertCanManageViaCollaborator(
+  const { collaborator, userId, userName } = await assertCanManageViaCollaborator(
     parsed.data.externalCollaboratorId,
   );
 
-  await prisma.externalCollaboratorAdditional.create({
+  const rec = await prisma.externalCollaboratorAdditional.create({
     data: {
       externalCollaboratorId: parsed.data.externalCollaboratorId,
       description: parsed.data.description,
       amount: parsed.data.amount,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "ext_additional.create",
+    entityType: "ExternalCollaboratorAdditional",
+    entityId: rec.id,
+    entityName: `${collaborator.name} — ${parsed.data.description} (${money(parsed.data.amount)})`,
+    projectId: collaborator.projectId,
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
@@ -168,11 +209,20 @@ export async function updateExternalAdditional(formData: FormData) {
     where: { id: parsed.data.externalAdditionalId },
   });
   if (!additional) throw new Error("No encontrado");
-  const collaborator = await assertCanManageViaCollaborator(additional.externalCollaboratorId);
+  const { collaborator, userId, userName } = await assertCanManageViaCollaborator(additional.externalCollaboratorId);
 
   await prisma.externalCollaboratorAdditional.update({
     where: { id: parsed.data.externalAdditionalId },
     data: { description: parsed.data.description, amount: parsed.data.amount },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "ext_additional.update",
+    entityType: "ExternalCollaboratorAdditional",
+    entityId: parsed.data.externalAdditionalId,
+    entityName: `${collaborator.name} — ${parsed.data.description} (${money(parsed.data.amount)})`,
+    projectId: collaborator.projectId,
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
@@ -188,10 +238,19 @@ export async function deleteExternalAdditional(formData: FormData) {
     where: { id: parsed.data.externalAdditionalId },
   });
   if (!additional) throw new Error("No encontrado");
-  const collaborator = await assertCanManageViaCollaborator(additional.externalCollaboratorId);
+  const { collaborator, userId, userName } = await assertCanManageViaCollaborator(additional.externalCollaboratorId);
 
   await prisma.externalCollaboratorAdditional.delete({
     where: { id: parsed.data.externalAdditionalId },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "ext_additional.delete",
+    entityType: "ExternalCollaboratorAdditional",
+    entityId: parsed.data.externalAdditionalId,
+    entityName: `${collaborator.name} — ${additional.description} (${money(additional.amount)})`,
+    projectId: collaborator.projectId,
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
@@ -206,17 +265,26 @@ export async function addExternalPayment(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  const collaborator = await assertCanManageViaCollaborator(
+  const { collaborator, userId, userName } = await assertCanManageViaCollaborator(
     parsed.data.externalCollaboratorId,
   );
 
-  await prisma.externalCollaboratorPayment.create({
+  const rec = await prisma.externalCollaboratorPayment.create({
     data: {
       externalCollaboratorId: parsed.data.externalCollaboratorId,
       date: parsed.data.date,
       amount: parsed.data.amount,
       description: parsed.data.description || null,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "ext_payment.create",
+    entityType: "ExternalCollaboratorPayment",
+    entityId: rec.id,
+    entityName: `${collaborator.name} — ${money(parsed.data.amount)}`,
+    projectId: collaborator.projectId,
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
@@ -235,7 +303,7 @@ export async function updateExternalPayment(formData: FormData) {
     where: { id: parsed.data.externalPaymentId },
   });
   if (!payment) throw new Error("No encontrado");
-  const collaborator = await assertCanManageViaCollaborator(payment.externalCollaboratorId);
+  const { collaborator, userId, userName } = await assertCanManageViaCollaborator(payment.externalCollaboratorId);
 
   await prisma.externalCollaboratorPayment.update({
     where: { id: parsed.data.externalPaymentId },
@@ -244,6 +312,15 @@ export async function updateExternalPayment(formData: FormData) {
       amount: parsed.data.amount,
       description: parsed.data.description || null,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "ext_payment.update",
+    entityType: "ExternalCollaboratorPayment",
+    entityId: parsed.data.externalPaymentId,
+    entityName: `${collaborator.name} — ${money(parsed.data.amount)}`,
+    projectId: collaborator.projectId,
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
@@ -259,10 +336,19 @@ export async function deleteExternalPayment(formData: FormData) {
     where: { id: parsed.data.externalPaymentId },
   });
   if (!payment) throw new Error("No encontrado");
-  const collaborator = await assertCanManageViaCollaborator(payment.externalCollaboratorId);
+  const { collaborator, userId, userName } = await assertCanManageViaCollaborator(payment.externalCollaboratorId);
 
   await prisma.externalCollaboratorPayment.delete({
     where: { id: parsed.data.externalPaymentId },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "ext_payment.delete",
+    entityType: "ExternalCollaboratorPayment",
+    entityId: parsed.data.externalPaymentId,
+    entityName: `${collaborator.name} — ${money(payment.amount)}`,
+    projectId: collaborator.projectId,
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);

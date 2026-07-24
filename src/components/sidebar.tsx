@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Role } from "@/generated/prisma/enums";
-import { ClientsIcon, DashboardIcon, LogoIcon, PlusIcon, TeamIcon } from "@/components/ui/icons";
+import { ClientsIcon, DashboardIcon, HistoryIcon, LogoIcon, PlusIcon, TeamIcon } from "@/components/ui/icons";
 
 const roleLabel: Record<Role, string> = {
   GERENCIA: "Gerencia",
@@ -62,6 +62,15 @@ export function Sidebar({
           >
             <TeamIcon className="h-6 w-6" />
             <span className="ml-4 hidden md:inline">Usuarios</span>
+          </Link>
+        )}
+        {role === Role.GERENCIA && (
+          <Link
+            href="/audit"
+            className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
+          >
+            <HistoryIcon className="h-6 w-6" />
+            <span className="ml-4 hidden md:inline">Historial</span>
           </Link>
         )}
       </nav>

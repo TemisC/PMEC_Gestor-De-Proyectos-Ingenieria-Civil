@@ -262,3 +262,24 @@ model ExternalCollaboratorPayment {
 
   createdAt DateTime @default(now())
 }
+
+// Audit log — registro de quién cambió qué y cuándo (ítem #8 del roadmap PRO).
+// Sin FKs intencionales: los nombres se desnormalizan para que el historial
+// sobreviva si el proyecto/usuario se archiva o elimina.
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId   String?
+  userName String?
+
+  action     String  // "invoice.create", "project.archive", etc.
+  entityType String  // "Invoice", "Project", etc.
+  entityId   String
+  entityName String? // etiqueta legible para mostrar en la UI
+
+  projectId String? // para filtrar por proyecto (null en acciones globales como gestión de usuarios)
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}

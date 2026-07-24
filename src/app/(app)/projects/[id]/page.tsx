@@ -38,6 +38,7 @@ import { TrashIcon } from "@/components/ui/icons";
 import { FinancialsSection } from "./financials-section";
 import { ExternalCollaboratorsSection } from "./external-collaborators-section";
 import { CashflowSection } from "./cashflow-section";
+import { AuditSection } from "../audit-section";
 
 export default async function ProjectDetailPage({
   params,
@@ -135,6 +136,14 @@ export default async function ProjectDetailPage({
     rateByUserId,
     externalPayments: project.externalCollaborators.flatMap((c) => c.payments),
   });
+
+  const auditEntries = canSeeFinancials
+    ? await prisma.auditLog.findMany({
+        where: { projectId: id },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      })
+    : [];
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -266,6 +275,8 @@ export default async function ProjectDetailPage({
       )}
 
       {canSeeFinancials && <CashflowSection rows={cashflowRows} />}
+
+      {canSeeFinancials && <AuditSection entries={auditEntries} />}
 
       {canManage && (
         <Card className="flex flex-col gap-3">

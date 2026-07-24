@@ -11,6 +11,7 @@ import {
   toggleUserActiveSchema,
   updateUserSchema,
 } from "@/lib/schemas";
+import { logAction } from "@/lib/audit";
 
 // Admin queda fuera del alcance del MVP (sección 0.1 del plan) —
 // Gerencia asume esta función mínima mientras tanto. Re-chequea el rol
@@ -44,7 +45,7 @@ export async function createUser(formData: FormData) {
   }
 
   const hashedPassword = await bcrypt.hash(parsed.data.password, 12);
-  await prisma.user.create({
+  const newUser = await prisma.user.create({
     data: {
       email: parsed.data.email,
       name: parsed.data.name,
@@ -57,6 +58,15 @@ export async function createUser(formData: FormData) {
     },
   });
 
+  await logAction({
+    userId: session.user.id,
+    userName: session.user.name ?? session.user.email,
+    action: "user.create",
+    entityType: "User",
+    entityId: newUser.id,
+    entityName: parsed.data.name ?? parsed.data.email,
+  });
+
   revalidatePath("/users");
 }
 
@@ -66,11 +76,11 @@ async function assertCanManageUsers() {
   if (!userId || !canManageUsers({ id: userId, role: session.user.role })) {
     throw new Error("No autorizado");
   }
-  return userId;
+  return { callerId: userId, callerName: session.user.name ?? session.user.email ?? null };
 }
 
 export async function updateUser(formData: FormData) {
-  const callerId = await assertCanManageUsers();
+  const { callerId, callerName } = await assertCanManageUsers();
 
   const parsed = updateUserSchema.safeParse({
     userId: formData.get("userId"),
@@ -112,11 +122,19 @@ export async function updateUser(formData: FormData) {
     },
   });
 
+  await logAction({
+    userId: callerId, userName: callerName,
+    action: "user.update",
+    entityType: "User",
+    entityId: userId,
+    entityName: name ?? email,
+  });
+
   revalidatePath("/users");
 }
 
 export async function toggleUserActive(formData: FormData) {
-  const callerId = await assertCanManageUsers();
+  const { callerId, callerName } = await assertCanManageUsers();
 
   const parsed = toggleUserActiveSchema.safeParse({
     userId: formData.get("userId"),
@@ -130,27 +148,35 @@ export async function toggleUserActive(formData: FormData) {
     throw new Error("No podés desactivarte a vos mismo.");
   }
 
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+
   // Si se está desactivando a un GERENCIA, verificar que quede al menos uno activo.
-  if (!active) {
-    const target = await prisma.user.findUnique({ where: { id: userId } });
-    if (target?.role === "GERENCIA") {
-      const otherActiveGerencia = await prisma.user.count({
-        where: { role: "GERENCIA", active: true, NOT: { id: userId } },
-      });
-      if (otherActiveGerencia === 0) {
-        throw new Error(
-          "No se puede desactivar: es el único usuario de Gerencia activo.",
-        );
-      }
+  if (!active && target?.role === "GERENCIA") {
+    const otherActiveGerencia = await prisma.user.count({
+      where: { role: "GERENCIA", active: true, NOT: { id: userId } },
+    });
+    if (otherActiveGerencia === 0) {
+      throw new Error(
+        "No se puede desactivar: es el único usuario de Gerencia activo.",
+      );
     }
   }
 
   await prisma.user.update({ where: { id: userId }, data: { active } });
+
+  await logAction({
+    userId: callerId, userName: callerName,
+    action: active ? "user.reactivate" : "user.deactivate",
+    entityType: "User",
+    entityId: userId,
+    entityName: target?.name ?? target?.email ?? userId,
+  });
+
   revalidatePath("/users");
 }
 
 export async function deleteUser(formData: FormData) {
-  const callerId = await assertCanManageUsers();
+  const { callerId, callerName } = await assertCanManageUsers();
 
   const parsed = deleteUserSchema.safeParse({ userId: formData.get("userId") });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
@@ -173,6 +199,17 @@ export async function deleteUser(formData: FormData) {
     );
   }
 
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+
   await prisma.user.delete({ where: { id: userId } });
+
+  await logAction({
+    userId: callerId, userName: callerName,
+    action: "user.delete",
+    entityType: "User",
+    entityId: userId,
+    entityName: target?.name ?? target?.email ?? userId,
+  });
+
   revalidatePath("/users");
 }

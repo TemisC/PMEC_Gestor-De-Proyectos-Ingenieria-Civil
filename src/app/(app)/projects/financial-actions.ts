@@ -17,6 +17,7 @@ import {
   updateInvoiceSchema,
   updatePlannedInvoiceSchema,
 } from "@/lib/schemas";
+import { logAction } from "@/lib/audit";
 
 // Todo lo financiero (acuerdo, adicionales, previsión de facturación,
 // tarifas) es edición exclusiva del Gestor responsable — Gerencia lo ve
@@ -36,7 +37,11 @@ async function assertCanManage(projectId: string) {
   if (!project || !canManageProject({ id: userId, role: session.user.role }, toAuthProject(project))) {
     throw new Error("No autorizado");
   }
-  return project;
+  return { project, userId, userName: session.user.name ?? session.user.email ?? null };
+}
+
+function money(n: number) {
+  return `$${Math.round(n).toLocaleString("es-AR")}`;
 }
 
 export async function setAgreement(formData: FormData) {
@@ -48,7 +53,7 @@ export async function setAgreement(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  await assertCanManage(parsed.data.projectId);
+  const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
   await prisma.projectAgreement.upsert({
     where: { projectId: parsed.data.projectId },
@@ -65,6 +70,15 @@ export async function setAgreement(formData: FormData) {
     },
   });
 
+  await logAction({
+    userId, userName,
+    action: "agreement.set",
+    entityType: "ProjectAgreement",
+    entityId: parsed.data.projectId,
+    entityName: money(parsed.data.amount),
+    projectId: parsed.data.projectId,
+  });
+
   revalidatePath(`/projects/${parsed.data.projectId}`);
 }
 
@@ -77,15 +91,24 @@ export async function addAdditional(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  await assertCanManage(parsed.data.projectId);
+  const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
-  await prisma.projectAdditional.create({
+  const rec = await prisma.projectAdditional.create({
     data: {
       projectId: parsed.data.projectId,
       description: parsed.data.description,
       amount: parsed.data.amount,
       url: parsed.data.url || null,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "additional.create",
+    entityType: "ProjectAdditional",
+    entityId: rec.id,
+    entityName: `${parsed.data.description} (${money(parsed.data.amount)})`,
+    projectId: parsed.data.projectId,
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
@@ -104,7 +127,7 @@ export async function updateAdditional(formData: FormData) {
     where: { id: parsed.data.additionalId },
   });
   if (!additional) throw new Error("No encontrado");
-  await assertCanManage(additional.projectId);
+  const { userId, userName } = await assertCanManage(additional.projectId);
 
   await prisma.projectAdditional.update({
     where: { id: parsed.data.additionalId },
@@ -113,6 +136,15 @@ export async function updateAdditional(formData: FormData) {
       amount: parsed.data.amount,
       url: parsed.data.url || null,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "additional.update",
+    entityType: "ProjectAdditional",
+    entityId: parsed.data.additionalId,
+    entityName: `${parsed.data.description} (${money(parsed.data.amount)})`,
+    projectId: additional.projectId,
   });
 
   revalidatePath(`/projects/${additional.projectId}`);
@@ -128,9 +160,18 @@ export async function deleteAdditional(formData: FormData) {
     where: { id: parsed.data.additionalId },
   });
   if (!additional) throw new Error("No encontrado");
-  await assertCanManage(additional.projectId);
+  const { userId, userName } = await assertCanManage(additional.projectId);
 
   await prisma.projectAdditional.delete({ where: { id: parsed.data.additionalId } });
+
+  await logAction({
+    userId, userName,
+    action: "additional.delete",
+    entityType: "ProjectAdditional",
+    entityId: parsed.data.additionalId,
+    entityName: `${additional.description} (${money(additional.amount)})`,
+    projectId: additional.projectId,
+  });
 
   revalidatePath(`/projects/${additional.projectId}`);
 }
@@ -145,9 +186,9 @@ export async function addPlannedInvoice(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  await assertCanManage(parsed.data.projectId);
+  const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
-  await prisma.plannedInvoice.create({
+  const rec = await prisma.plannedInvoice.create({
     data: {
       projectId: parsed.data.projectId,
       description: parsed.data.description,
@@ -155,6 +196,15 @@ export async function addPlannedInvoice(formData: FormData) {
       amount: parsed.data.amount,
       source: parsed.data.source,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "planned_invoice.create",
+    entityType: "PlannedInvoice",
+    entityId: rec.id,
+    entityName: `${parsed.data.description} (${money(parsed.data.amount)})`,
+    projectId: parsed.data.projectId,
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
@@ -177,7 +227,7 @@ export async function updatePlannedInvoice(formData: FormData) {
   });
   if (!planned) throw new Error("No encontrada");
   if (planned.invoiced) throw new Error("Ya fue facturada, no se puede editar la previsión");
-  await assertCanManage(planned.projectId);
+  const { userId, userName } = await assertCanManage(planned.projectId);
 
   await prisma.plannedInvoice.update({
     where: { id: parsed.data.plannedInvoiceId },
@@ -186,6 +236,15 @@ export async function updatePlannedInvoice(formData: FormData) {
       date: parsed.data.date,
       amount: parsed.data.amount,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "planned_invoice.update",
+    entityType: "PlannedInvoice",
+    entityId: parsed.data.plannedInvoiceId,
+    entityName: `${parsed.data.description} (${money(parsed.data.amount)})`,
+    projectId: planned.projectId,
   });
 
   revalidatePath(`/projects/${planned.projectId}`);
@@ -202,9 +261,18 @@ export async function deletePlannedInvoice(formData: FormData) {
   });
   if (!planned) throw new Error("No encontrada");
   if (planned.invoiced) throw new Error("Ya fue facturada, no se puede borrar la previsión");
-  await assertCanManage(planned.projectId);
+  const { userId, userName } = await assertCanManage(planned.projectId);
 
   await prisma.plannedInvoice.delete({ where: { id: parsed.data.plannedInvoiceId } });
+
+  await logAction({
+    userId, userName,
+    action: "planned_invoice.delete",
+    entityType: "PlannedInvoice",
+    entityId: parsed.data.plannedInvoiceId,
+    entityName: `${planned.description} (${money(planned.amount)})`,
+    projectId: planned.projectId,
+  });
 
   revalidatePath(`/projects/${planned.projectId}`);
 }
@@ -220,7 +288,7 @@ export async function updateInvoice(formData: FormData) {
 
   const invoice = await prisma.invoice.findUnique({ where: { id: parsed.data.invoiceId } });
   if (!invoice) throw new Error("No encontrada");
-  await assertCanManage(invoice.projectId);
+  const { userId, userName } = await assertCanManage(invoice.projectId);
 
   await prisma.invoice.update({
     where: { id: parsed.data.invoiceId },
@@ -229,6 +297,15 @@ export async function updateInvoice(formData: FormData) {
       date: parsed.data.date,
       pdfUrl: parsed.data.pdfUrl || null,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "invoice.update",
+    entityType: "Invoice",
+    entityId: parsed.data.invoiceId,
+    entityName: money(parsed.data.amount),
+    projectId: invoice.projectId,
   });
 
   revalidatePath(`/projects/${invoice.projectId}`);
@@ -245,9 +322,18 @@ export async function deleteInvoice(formData: FormData) {
 
   const invoice = await prisma.invoice.findUnique({ where: { id: parsed.data.invoiceId } });
   if (!invoice) throw new Error("No encontrada");
-  await assertCanManage(invoice.projectId);
+  const { userId, userName } = await assertCanManage(invoice.projectId);
 
   await prisma.invoice.delete({ where: { id: parsed.data.invoiceId } });
+
+  await logAction({
+    userId, userName,
+    action: "invoice.delete",
+    entityType: "Invoice",
+    entityId: parsed.data.invoiceId,
+    entityName: money(invoice.amount),
+    projectId: invoice.projectId,
+  });
 
   revalidatePath(`/projects/${invoice.projectId}`);
 }
@@ -266,7 +352,7 @@ export async function promotePlannedInvoice(formData: FormData) {
   });
   if (!planned) throw new Error("No encontrada");
 
-  await assertCanManage(planned.projectId);
+  const { userId, userName } = await assertCanManage(planned.projectId);
 
   await prisma.$transaction([
     prisma.invoice.create({
@@ -284,6 +370,15 @@ export async function promotePlannedInvoice(formData: FormData) {
     }),
   ]);
 
+  await logAction({
+    userId, userName,
+    action: "planned_invoice.promote",
+    entityType: "PlannedInvoice",
+    entityId: planned.id,
+    entityName: `${planned.description} (${money(planned.amount)})`,
+    projectId: planned.projectId,
+  });
+
   revalidatePath(`/projects/${planned.projectId}`);
 }
 
@@ -295,7 +390,12 @@ export async function setMemberRate(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  await assertCanManage(parsed.data.projectId);
+  const { userId, userName } = await assertCanManage(parsed.data.projectId);
+
+  const member = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId: parsed.data.userId, projectId: parsed.data.projectId } },
+    include: { user: true },
+  });
 
   await prisma.projectMember.update({
     where: {
@@ -305,6 +405,15 @@ export async function setMemberRate(formData: FormData) {
       },
     },
     data: { hourlyRate: parsed.data.hourlyRate },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "member.rate_update",
+    entityType: "ProjectMember",
+    entityId: `${parsed.data.projectId}:${parsed.data.userId}`,
+    entityName: member?.user.name ?? member?.user.email ?? parsed.data.userId,
+    projectId: parsed.data.projectId,
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);

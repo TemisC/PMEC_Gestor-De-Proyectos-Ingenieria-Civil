@@ -21,6 +21,7 @@ import {
   updateProjectSchema,
   updateTimeEntrySchema,
 } from "@/lib/schemas";
+import { logAction } from "@/lib/audit";
 
 async function assertCanManage(projectId: string) {
   const session = await auth();
@@ -34,7 +35,7 @@ async function assertCanManage(projectId: string) {
   if (!project || !canManageProject({ id: userId, role: session.user.role }, toAuthProject(project))) {
     throw new Error("No autorizado");
   }
-  return project;
+  return { project, userId, userName: session.user.name ?? session.user.email ?? null };
 }
 
 // Etapa 4 (plan_maestro.md, sección 11): CRUD real de Proyectos y carga
@@ -80,6 +81,16 @@ export async function createProject(formData: FormData) {
     },
   });
 
+  await logAction({
+    userId,
+    userName: session.user.name ?? session.user.email,
+    action: "project.create",
+    entityType: "Project",
+    entityId: project.id,
+    entityName: project.name,
+    projectId: project.id,
+  });
+
   revalidatePath("/dashboard");
   redirect(`/projects/${project.id}`);
 }
@@ -93,7 +104,7 @@ export async function updateProject(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  await assertCanManage(parsed.data.projectId);
+  const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
   let clientId: string | null = parsed.data.clientId || null;
   if (parsed.data.newClientName) {
@@ -110,6 +121,15 @@ export async function updateProject(formData: FormData) {
     data: { name: parsed.data.name, clientId },
   });
 
+  await logAction({
+    userId, userName,
+    action: "project.update",
+    entityType: "Project",
+    entityId: parsed.data.projectId,
+    entityName: parsed.data.name,
+    projectId: parsed.data.projectId,
+  });
+
   revalidatePath(`/projects/${parsed.data.projectId}`);
   revalidatePath("/dashboard");
 }
@@ -124,11 +144,20 @@ export async function setProjectStatus(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  await assertCanManage(parsed.data.projectId);
+  const { project, userId, userName } = await assertCanManage(parsed.data.projectId);
 
   await prisma.project.update({
     where: { id: parsed.data.projectId },
     data: { status: parsed.data.status },
+  });
+
+  await logAction({
+    userId, userName,
+    action: parsed.data.status === "ARCHIVED" ? "project.archive" : "project.unarchive",
+    entityType: "Project",
+    entityId: parsed.data.projectId,
+    entityName: project.name,
+    projectId: parsed.data.projectId,
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
@@ -170,6 +199,16 @@ export async function addProjectMember(formData: FormData) {
     create: { userId: parsed.data.userId, projectId: parsed.data.projectId },
   });
 
+  await logAction({
+    userId,
+    userName: session.user.name ?? session.user.email,
+    action: "member.add",
+    entityType: "ProjectMember",
+    entityId: `${parsed.data.projectId}:${parsed.data.userId}`,
+    entityName: memberToAdd.name ?? memberToAdd.email,
+    projectId: parsed.data.projectId,
+  });
+
   revalidatePath(`/projects/${parsed.data.projectId}`);
 }
 
@@ -192,8 +231,20 @@ export async function removeProjectMember(formData: FormData) {
     throw new Error("No autorizado");
   }
 
+  const memberToRemove = await prisma.user.findUnique({ where: { id: parsed.data.userId } });
+
   await prisma.projectMember.deleteMany({
     where: { projectId: parsed.data.projectId, userId: parsed.data.userId },
+  });
+
+  await logAction({
+    userId,
+    userName: session.user.name ?? session.user.email,
+    action: "member.remove",
+    entityType: "ProjectMember",
+    entityId: `${parsed.data.projectId}:${parsed.data.userId}`,
+    entityName: memberToRemove?.name ?? memberToRemove?.email ?? parsed.data.userId,
+    projectId: parsed.data.projectId,
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
@@ -230,6 +281,16 @@ export async function logTimeEntry(formData: FormData) {
     },
   });
 
+  await logAction({
+    userId,
+    userName: session.user.name ?? session.user.email,
+    action: "time_entry.create",
+    entityType: "TimeEntry",
+    entityId: parsed.data.projectId,
+    entityName: `${parsed.data.hours}h`,
+    projectId: parsed.data.projectId,
+  });
+
   revalidatePath(`/projects/${parsed.data.projectId}`);
 }
 
@@ -254,7 +315,7 @@ async function assertCanManageTimeEntry(timeEntryId: string) {
   ) {
     throw new Error("No autorizado");
   }
-  return entry;
+  return { entry, userId, userName: session.user.name ?? session.user.email ?? null };
 }
 
 export async function updateTimeEntry(formData: FormData) {
@@ -266,7 +327,7 @@ export async function updateTimeEntry(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  const entry = await assertCanManageTimeEntry(parsed.data.timeEntryId);
+  const { entry, userId, userName } = await assertCanManageTimeEntry(parsed.data.timeEntryId);
 
   await prisma.timeEntry.update({
     where: { id: parsed.data.timeEntryId },
@@ -275,6 +336,15 @@ export async function updateTimeEntry(formData: FormData) {
       hours: parsed.data.hours,
       description: parsed.data.description || null,
     },
+  });
+
+  await logAction({
+    userId, userName,
+    action: "time_entry.update",
+    entityType: "TimeEntry",
+    entityId: parsed.data.timeEntryId,
+    entityName: `${parsed.data.hours}h`,
+    projectId: entry.projectId,
   });
 
   revalidatePath(`/projects/${entry.projectId}`);
@@ -286,9 +356,18 @@ export async function deleteTimeEntry(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
 
-  const entry = await assertCanManageTimeEntry(parsed.data.timeEntryId);
+  const { entry, userId, userName } = await assertCanManageTimeEntry(parsed.data.timeEntryId);
 
   await prisma.timeEntry.delete({ where: { id: parsed.data.timeEntryId } });
+
+  await logAction({
+    userId, userName,
+    action: "time_entry.delete",
+    entityType: "TimeEntry",
+    entityId: parsed.data.timeEntryId,
+    entityName: `${entry.hours}h`,
+    projectId: entry.projectId,
+  });
 
   revalidatePath(`/projects/${entry.projectId}`);
 }
