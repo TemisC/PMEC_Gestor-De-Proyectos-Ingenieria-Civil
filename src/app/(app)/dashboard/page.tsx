@@ -13,6 +13,8 @@ import {
   isMarginAtRisk,
 } from "@/lib/financials";
 import { Card } from "@/components/ui/card";
+import { SearchInput } from "@/components/search-input";
+import { Pagination } from "@/components/pagination";
 import {
   AlertIcon,
   PercentIcon,
@@ -20,6 +22,8 @@ import {
   ReceiptIcon,
   TrendingUpIcon,
 } from "@/components/ui/icons";
+
+const PAGE_SIZE = 15;
 
 function money(amount: number) {
   return amount.toLocaleString("es-AR", {
@@ -45,15 +49,25 @@ function MarginBadge({ pct, atRisk }: { pct: number; atRisk: boolean }) {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ archived?: string }>;
+  searchParams: Promise<{ archived?: string; q?: string; page?: string }>;
 }) {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
 
   const role = session.user.role;
-  const { archived } = await searchParams;
+  const { archived, q, page: pageStr } = await searchParams;
   const showArchived = archived === "1";
+  const page = Math.max(1, parseInt(pageStr ?? "1", 10) || 1);
+
+  // Helper para toggle de archivados preservando el filtro activo
+  const archiveHref = (currentlyArchived: boolean) => {
+    const params = new URLSearchParams();
+    if (!currentlyArchived) params.set("archived", "1");
+    if (q) params.set("q", q);
+    const qs = params.toString();
+    return `/dashboard${qs ? `?${qs}` : ""}`;
+  };
 
   // ── Gerencia: query completo con todo lo financiero ──────────────────
   if (role === Role.GERENCIA) {
@@ -125,6 +139,12 @@ export default async function DashboardPage({
       if (b.totalBudget === 0) return -1;
       return a.profitPct - b.profitPct;
     });
+
+    // Filtrado + paginación de la cartera (KPIs siempre sobre el total)
+    const filteredSorted = q
+      ? sorted.filter((r) => r.project.name.toLowerCase().includes(q.toLowerCase()))
+      : sorted;
+    const paginatedSorted = filteredSorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     return (
       <div className="flex flex-col gap-6">
@@ -249,54 +269,63 @@ export default async function DashboardPage({
 
         {/* Cartera completa */}
         <Card>
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-              Cartera {showArchived ? "archivada" : "activa"} ({projects.length})
+              Cartera {showArchived ? "archivada" : "activa"} ({filteredSorted.length}
+              {q && ` de ${sorted.length}`})
             </h2>
-            <Link
-              href={showArchived ? "/dashboard" : "/dashboard?archived=1"}
-              className="text-xs text-sky-400 hover:underline"
-            >
-              {showArchived ? "Ver activos" : "Ver archivados"}
-            </Link>
+            <div className="flex items-center gap-3">
+              <SearchInput placeholder="Buscar proyecto…" />
+              <Link
+                href={archiveHref(showArchived)}
+                className="text-xs text-sky-400 hover:underline"
+              >
+                {showArchived ? "Ver activos" : "Ver archivados"}
+              </Link>
+            </div>
           </div>
-          {sorted.length === 0 ? (
-            <p className="text-sm text-gray-500">No hay proyectos para mostrar.</p>
+          {filteredSorted.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              {q ? `Sin resultados para "${q}".` : "No hay proyectos para mostrar."}
+            </p>
           ) : (
-            <ul className="flex flex-col gap-1.5">
-              {sorted.map(({ project, totalBudget, totalInvoiced, profitPct, atRisk }) => (
-                <li key={project.id}>
-                  <Link
-                    href={`/projects/${project.id}`}
-                    className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-4 py-2.5 text-sm transition-colors hover:border-sky-500"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium text-white">
-                        {project.name}
+            <>
+              <ul className="flex flex-col gap-1.5">
+                {paginatedSorted.map(({ project, totalBudget, totalInvoiced, profitPct, atRisk }) => (
+                  <li key={project.id}>
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-4 py-2.5 text-sm transition-colors hover:border-sky-500"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-white">
+                          {project.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {project.manager.name ?? project.manager.email}
+                          {project.client && ` · ${project.client.name}`}
+                        </span>
                       </span>
-                      <span className="text-xs text-gray-500">
-                        {project.manager.name ?? project.manager.email}
-                        {project.client && ` · ${project.client.name}`}
+                      <span className="ml-4 flex shrink-0 items-center gap-4 text-xs text-gray-400">
+                        {totalBudget > 0 && (
+                          <>
+                            <span className="hidden sm:block">{money(totalBudget)}</span>
+                            <span className="hidden sm:block text-gray-600">
+                              {money(totalInvoiced)} fact.
+                            </span>
+                            <MarginBadge pct={profitPct} atRisk={atRisk} />
+                          </>
+                        )}
+                        {totalBudget === 0 && (
+                          <span className="text-gray-600">Sin presupuesto</span>
+                        )}
                       </span>
-                    </span>
-                    <span className="ml-4 flex shrink-0 items-center gap-4 text-xs text-gray-400">
-                      {totalBudget > 0 && (
-                        <>
-                          <span className="hidden sm:block">{money(totalBudget)}</span>
-                          <span className="hidden sm:block text-gray-600">
-                            {money(totalInvoiced)} fact.
-                          </span>
-                          <MarginBadge pct={profitPct} atRisk={atRisk} />
-                        </>
-                      )}
-                      {totalBudget === 0 && (
-                        <span className="text-gray-600">Sin presupuesto</span>
-                      )}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Pagination page={page} total={filteredSorted.length} pageSize={PAGE_SIZE} q={q} />
+            </>
           )}
         </Card>
       </div>
@@ -334,6 +363,12 @@ export default async function DashboardPage({
 
     const atRiskCount = rows.filter((r) => r.atRisk).length;
     const totalCartera = rows.reduce((s, r) => s + r.totalBudget, 0);
+
+    // Filtrado + paginación de la lista (KPIs siempre sobre el total)
+    const filteredRows = q
+      ? rows.filter((r) => r.project.name.toLowerCase().includes(q.toLowerCase()))
+      : rows;
+    const paginatedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     return (
       <div className="flex flex-col gap-6">
@@ -373,13 +408,15 @@ export default async function DashboardPage({
         </div>
 
         <Card>
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-              Proyectos{showArchived ? " archivados" : ""} ({projects.length})
+              Proyectos{showArchived ? " archivados" : ""} ({filteredRows.length}
+              {q && ` de ${rows.length}`})
             </h2>
             <div className="flex items-center gap-3">
+              <SearchInput placeholder="Buscar proyecto…" />
               <Link
-                href={showArchived ? "/dashboard" : "/dashboard?archived=1"}
+                href={archiveHref(showArchived)}
                 className="text-xs text-sky-400 hover:underline"
               >
                 {showArchived ? "Ver activos" : "Ver archivados"}
@@ -393,29 +430,36 @@ export default async function DashboardPage({
               </Link>
             </div>
           </div>
-          {rows.length === 0 ? (
+          {filteredRows.length === 0 ? (
             <p className="text-sm text-gray-500">
-              {showArchived ? "No hay proyectos archivados." : "Todavía no tenés proyectos."}
+              {q
+                ? `Sin resultados para "${q}".`
+                : showArchived
+                  ? "No hay proyectos archivados."
+                  : "Todavía no tenés proyectos."}
             </p>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {rows.map(({ project, totalBudget, totalInvoiced, profitPct, atRisk }) => (
-                <li key={project.id}>
-                  <Link
-                    href={`/projects/${project.id}`}
-                    className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-4 py-3 text-sm transition-colors hover:border-sky-500"
-                  >
-                    <span className="font-medium text-white">{project.name}</span>
-                    {totalBudget > 0 && (
-                      <span className="flex items-center gap-3 text-xs text-gray-400">
-                        <span className="hidden sm:block">{money(totalBudget)}</span>
-                        <MarginBadge pct={profitPct} atRisk={atRisk} />
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="flex flex-col gap-2">
+                {paginatedRows.map(({ project, totalBudget, totalInvoiced, profitPct, atRisk }) => (
+                  <li key={project.id}>
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-4 py-3 text-sm transition-colors hover:border-sky-500"
+                    >
+                      <span className="font-medium text-white">{project.name}</span>
+                      {totalBudget > 0 && (
+                        <span className="flex items-center gap-3 text-xs text-gray-400">
+                          <span className="hidden sm:block">{money(totalBudget)}</span>
+                          <MarginBadge pct={profitPct} atRisk={atRisk} />
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Pagination page={page} total={filteredRows.length} pageSize={PAGE_SIZE} q={q} />
+            </>
           )}
         </Card>
       </div>
@@ -423,13 +467,17 @@ export default async function DashboardPage({
   }
 
   // ── Colaborador ───────────────────────────────────────────────────────
-  const projects = await prisma.project.findMany({
+  const allColabProjects = await prisma.project.findMany({
     where: {
       members: { some: { userId } },
       status: showArchived ? "ARCHIVED" : "ACTIVE",
     },
     orderBy: { createdAt: "desc" },
   });
+
+  const colabProjects = q
+    ? allColabProjects.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
+    : allColabProjects;
 
   return (
     <div className="flex flex-col gap-6">
@@ -440,26 +488,31 @@ export default async function DashboardPage({
         <p className="text-sm text-gray-400">Tus proyectos asignados</p>
       </div>
       <Card>
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-            Proyectos ({projects.length})
+            Proyectos ({colabProjects.length}{q && ` de ${allColabProjects.length}`})
           </h2>
-          <Link
-            href={showArchived ? "/dashboard" : "/dashboard?archived=1"}
-            className="text-xs text-sky-400 hover:underline"
-          >
-            {showArchived ? "Ver activos" : "Ver archivados"}
-          </Link>
+          <div className="flex items-center gap-3">
+            <SearchInput placeholder="Buscar proyecto…" />
+            <Link
+              href={archiveHref(showArchived)}
+              className="text-xs text-sky-400 hover:underline"
+            >
+              {showArchived ? "Ver activos" : "Ver archivados"}
+            </Link>
+          </div>
         </div>
-        {projects.length === 0 ? (
+        {colabProjects.length === 0 ? (
           <p className="text-sm text-gray-500">
-            {showArchived
-              ? "No hay proyectos archivados."
-              : "Todavía no estás asignado a ningún proyecto."}
+            {q
+              ? `Sin resultados para "${q}".`
+              : showArchived
+                ? "No hay proyectos archivados."
+                : "Todavía no estás asignado a ningún proyecto."}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {projects.map((project) => (
+            {colabProjects.map((project) => (
               <li key={project.id}>
                 <Link
                   href={`/projects/${project.id}`}

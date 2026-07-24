@@ -4,21 +4,41 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessClients } from "@/lib/authorization";
 import { Card } from "@/components/ui/card";
+import { SearchInput } from "@/components/search-input";
+import { Pagination } from "@/components/pagination";
 import { createClient } from "./actions";
+
+const PAGE_SIZE = 20;
 
 // Catálogo global de clientes (sección 2 del plan) — no scoped a un
 // Gestor. Cualquier proyecto de cualquier Gestor puede estar linkeado
 // a estos mismos clientes.
-export default async function ClientsPage() {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id || !canAccessClients({ id: session.user.id, role: session.user.role })) {
     redirect("/dashboard");
   }
 
-  const clients = await prisma.client.findMany({
-    include: { projects: true },
-    orderBy: { name: "asc" },
-  });
+  const { q, page: pageStr } = await searchParams;
+  const page = Math.max(1, parseInt(pageStr ?? "1", 10) || 1);
+  const skip = (page - 1) * PAGE_SIZE;
+
+  const where = q ? { name: { contains: q, mode: "insensitive" as const } } : undefined;
+
+  const [clients, total] = await Promise.all([
+    prisma.client.findMany({
+      where,
+      include: { projects: true },
+      orderBy: { name: "asc" },
+      take: PAGE_SIZE,
+      skip,
+    }),
+    prisma.client.count({ where }),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,28 +101,37 @@ export default async function ClientsPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Todos los clientes ({clients.length})
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+            Todos los clientes ({total})
+          </h2>
+          <SearchInput placeholder="Buscar por nombre…" />
+        </div>
+
         {clients.length === 0 ? (
-          <p className="text-sm text-gray-500">Todavía no hay clientes cargados.</p>
+          <p className="text-sm text-gray-500">
+            {q ? `Sin resultados para "${q}".` : "Todavía no hay clientes cargados."}
+          </p>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {clients.map((client) => (
-              <li key={client.id}>
-                <Link
-                  href={`/clients/${client.id}`}
-                  className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-4 py-2 text-sm hover:border-sky-500"
-                >
-                  <span className="font-medium text-white">{client.name}</span>
-                  <span className="text-xs text-gray-400">
-                    {client.projects.length}{" "}
-                    {client.projects.length === 1 ? "proyecto" : "proyectos"}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="flex flex-col gap-2">
+              {clients.map((client) => (
+                <li key={client.id}>
+                  <Link
+                    href={`/clients/${client.id}`}
+                    className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-4 py-2 text-sm hover:border-sky-500"
+                  >
+                    <span className="font-medium text-white">{client.name}</span>
+                    <span className="text-xs text-gray-400">
+                      {client.projects.length}{" "}
+                      {client.projects.length === 1 ? "proyecto" : "proyectos"}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Pagination page={page} total={total} pageSize={PAGE_SIZE} q={q} />
+          </>
         )}
       </Card>
     </div>
