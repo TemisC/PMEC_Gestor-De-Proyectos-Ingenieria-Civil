@@ -153,6 +153,18 @@ Decisiones ya acordadas con el usuario (no reabrir salvo que cambien las condici
 >
 > **Próximo paso sugerido:** ítem #7 (Row-Level Security en Postgres), ítem #8 (Audit log), o validar las fórmulas financieras con quien las diseñó (Etapa 0, cada vez más urgente).
 >
+> **Corte del 2026-07-24 (sesión 7) — Audit log (ítem #8):** se implementó el registro completo de quién cambió qué y cuándo. **Lo que se agregó:**
+> - Modelo `AuditLog` en `prisma/schema.prisma` (sin FKs intencionales — denormalizado para que el historial sobreviva si el proyecto/usuario se archiva o elimina). Migración `20260724000000_add_audit_log`.
+> - `src/lib/audit.ts`: `logAction()` best-effort (try/catch — un fallo del log nunca interrumpe la operación real), `ACTION_LABELS` con etiquetas en español para la UI, `relativeTime()` server-side sin dependencias externas.
+> - **Todas las acciones instrumentadas:** `projects/actions.ts` (crear/editar/archivar proyecto, equipo, horas), `financial-actions.ts` (acuerdo, adicionales, previsiones, facturas, tarifas), `external-collaborators-actions.ts` (subcontratistas + sus adicionales + pagos), `users/actions.ts` (crear/editar/desactivar/reactivar/eliminar usuarios).
+> - `AuditSection` en la página de cada proyecto: lista los últimos 30 eventos con "Quién hizo qué — sobre qué · hace N tiempo". Solo visible para Gestor y Gerencia.
+> - Página global `/audit` para Gerencia: todos los eventos paginados (50/pág), con link "Ver proyecto →" en cada entrada.
+> - `HistoryIcon` + link "Historial" en el sidebar (solo para Gerencia).
+> - #7 (Row-Level Security) descartado por ahora: la autorización server-side ya está bien cubierta; RLS agrega complejidad sin beneficio proporcional en un stack server-side con PgBouncer en transaction mode.
+> - Typecheck limpio, 52 tests en verde. Último commit: `c440166`.
+>
+> **Próximo paso sugerido:** ítem #9 (Exportar reportes PDF), la Etapa 0 (validar fórmulas financieras con quien las diseñó — urgente), o los ítems críticos diferidos (feedback de error inline en formularios, cambio de contraseña).
+>
 > **Corte del 2026-07-23 (mismo día, sesión siguiente) — cambio de máquina/red:** el usuario detectó que la red interna de la empresa (Quanam) bloquea los puertos de Postgres hacia Supabase (5432/6543) — confirmado en vivo (DNS y HTTPS/443 funcionan, esos dos puertos dan timeout). En vez de usar un Postgres local temporal, el usuario prefirió **verificar que todo esté al día en GitHub y mover este documento + los gotchas técnicos dentro del repo** (antes vivían solo en la carpeta local fuera de git y en la memoria del asistente, ninguna de las dos viaja a otra máquina) para retomar desde otra computadora/red sin perder contexto. Se movió `plan_maestro.md` a la raíz de `pmec/` (antes estaba un nivel arriba, fuera de cualquier repo git) y se creó `docs/gotchas.md` con los bugs técnicos reales ya resueltos, referenciado desde `AGENTS.md`. **No se tocó código ni base de datos en esta sesión** — es puramente un commit de continuidad/documentación. Ver la sección "Cómo continuar en otra máquina/red" al principio de este archivo para los pasos exactos de arranque.
 >
 > **Corte del 2026-07-23 (sesión 2) — Clientes de punta a punta:** se completó edición/borrado de clientes y contactos, cerrando la paridad con Proyectos. **Lo que se agregó:**
