@@ -132,6 +132,16 @@ Decisiones ya acordadas con el usuario (no reabrir salvo que cambien las condici
 >
 > **Próximo paso sugerido:** seguir con el ítem #5 del roadmap PRO (Panel de cashflow proyectado vs. real), o el #6 (Paginación/búsqueda/filtro en listas).
 >
+> **Corte del 2026-07-23 (sesión 5) — Cashflow mensual por proyecto:** se completó el ítem #5 del roadmap PRO. **Lo que se agregó:**
+> - `buildCashflowByMonth` en `src/lib/financials.ts`: función pura que agrupa por mes UTC (clave `YYYY-MM`) facturas reales, previsiones sin facturar, horas × tarifa y pagos a subcontratistas. Rellena meses vacíos en el rango para dar continuidad visual. Excluye colaboradores sin tarifa configurada (no inventa ceros falsos).
+> - 9 tests nuevos en `src/lib/financials.test.ts` (total: 52 tests, todos en verde).
+> - `CashflowSection` en `src/app/(app)/projects/[id]/cashflow-section.tsx`: tabla con columnas Mes / Cobrado / Previsto / Coste int. / Coste ext. / Resultado. Resultado en verde si positivo, rojo si negativo. Fila de totales en tfoot. Estado vacío con mensaje descriptivo si no hay datos.
+> - Wiring en `src/app/(app)/projects/[id]/page.tsx`: `buildCashflowByMonth` consume los datos ya cargados del proyecto; `CashflowSection` se renderiza dentro del bloque `canSeeFinancials`, después de los colaboradores externos.
+> - `docs/guia-funcional.md` actualizado con la descripción de la tabla de cashflow.
+> - Typecheck limpio, 52 tests en verde. Último commit: `69e9ad2`.
+>
+> **Próximo paso:** ítem #6 del roadmap PRO — paginación y búsqueda/filtro en las listas de proyectos, clientes y usuarios.
+>
 > **Corte del 2026-07-23 (mismo día, sesión siguiente) — cambio de máquina/red:** el usuario detectó que la red interna de la empresa (Quanam) bloquea los puertos de Postgres hacia Supabase (5432/6543) — confirmado en vivo (DNS y HTTPS/443 funcionan, esos dos puertos dan timeout). En vez de usar un Postgres local temporal, el usuario prefirió **verificar que todo esté al día en GitHub y mover este documento + los gotchas técnicos dentro del repo** (antes vivían solo en la carpeta local fuera de git y en la memoria del asistente, ninguna de las dos viaja a otra máquina) para retomar desde otra computadora/red sin perder contexto. Se movió `plan_maestro.md` a la raíz de `pmec/` (antes estaba un nivel arriba, fuera de cualquier repo git) y se creó `docs/gotchas.md` con los bugs técnicos reales ya resueltos, referenciado desde `AGENTS.md`. **No se tocó código ni base de datos en esta sesión** — es puramente un commit de continuidad/documentación. Ver la sección "Cómo continuar en otra máquina/red" al principio de este archivo para los pasos exactos de arranque.
 >
 > **Corte del 2026-07-23 (sesión 2) — Clientes de punta a punta:** se completó edición/borrado de clientes y contactos, cerrando la paridad con Proyectos. **Lo que se agregó:**

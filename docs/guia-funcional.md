@@ -1,7 +1,7 @@
 # Guía Funcional — PMEC
 
 > **Documento vivo.** Se actualiza cada vez que se agrega o modifica una funcionalidad.
-> Última actualización: 2026-07-24.
+> Última actualización: 2026-07-23.
 
 ---
 
@@ -112,6 +112,20 @@ Contiene el detalle económico completo del proyecto:
 - **Promover a factura real**: cuando el cobro se efectiviza, se convierte la previsión en una factura real (con PDF opcional).
 
 **Facturas emitidas:** registro de cobros reales. Cada factura tiene monto, fecha y URL de PDF opcional. Se pueden editar y borrar.
+
+#### Cashflow mensual (solo Gestor y Gerencia)
+
+Tabla que muestra mes a mes la evolución financiera del proyecto. Aparece solo cuando hay datos cargados (facturas, previsiones o horas con tarifa configurada).
+
+| Columna | Qué muestra |
+|---|---|
+| **Cobrado** | Facturas reales emitidas ese mes |
+| **Previsto** | Previsiones de cobro que todavía no se promovieron a factura |
+| **Coste int.** | Horas registradas × tarifa de cada colaborador ese mes |
+| **Coste ext.** | Pagos realizados a subcontratistas ese mes |
+| **Resultado** | Cobrado + Previsto − Coste interno − Coste externo (verde si positivo, rojo si negativo) |
+
+La fila **Total** al pie suma todas las columnas. Los meses sin actividad se muestran como filas en cero (para mantener la continuidad del rango temporal).
 
 #### Colaboradores externos / Subcontratistas (solo Gestor y Gerencia)
 
