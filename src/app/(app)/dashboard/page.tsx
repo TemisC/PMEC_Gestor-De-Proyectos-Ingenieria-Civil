@@ -641,10 +641,14 @@ export default async function DashboardPage({
         {/* 4 KPIs — misma estructura visual que el SPA */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {/* Empresa top */}
-          <div className="rounded-lg border border-blue-800/60 bg-blue-950/20 p-4">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-blue-400">
-              Empresa top
-            </p>
+          <Link href="/clients" className="group block">
+          <div className="rounded-lg border border-blue-800/60 bg-blue-950/20 p-4 transition-colors hover:border-blue-600/80 cursor-pointer">
+            <div className="flex items-center justify-between">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-blue-400">
+                Empresa top
+              </p>
+              <span className="text-[10px] text-gray-600 transition-colors group-hover:text-blue-400">Ver →</span>
+            </div>
             <p className="truncate text-lg font-bold text-white">{topClient?.name ?? "N/A"}</p>
             <p className="mt-1 text-xs text-gray-400">
               {topClient
@@ -652,21 +656,31 @@ export default async function DashboardPage({
                 : "Sin proyectos con cliente"}
             </p>
           </div>
+          </Link>
 
           {/* Pendiente pago */}
-          <div className="rounded-lg border border-red-800/60 bg-red-950/20 p-4">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-red-400">
-              Pendiente pago
-            </p>
+          <Link href="/collaborators" className="group block">
+          <div className="rounded-lg border border-red-800/60 bg-red-950/20 p-4 transition-colors hover:border-red-600/80 cursor-pointer">
+            <div className="flex items-center justify-between">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-red-400">
+                Pendiente pago
+              </p>
+              <span className="text-[10px] text-gray-600 transition-colors group-hover:text-red-400">Ver →</span>
+            </div>
             <p className="truncate text-lg font-bold text-white">{money(pendingPayment)}</p>
             <p className="mt-1 text-xs text-gray-400">A colaboradores externos</p>
           </div>
+          </Link>
 
           {/* Colaborador activo */}
-          <div className="rounded-lg border border-pink-800/60 bg-pink-950/20 p-4">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-pink-400">
-              Colaborador activo
-            </p>
+          <Link href="/team" className="group block">
+          <div className="rounded-lg border border-pink-800/60 bg-pink-950/20 p-4 transition-colors hover:border-pink-600/80 cursor-pointer">
+            <div className="flex items-center justify-between">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-pink-400">
+                Colaborador activo
+              </p>
+              <span className="text-[10px] text-gray-600 transition-colors group-hover:text-pink-400">Ver →</span>
+            </div>
             <p className="truncate text-lg font-bold text-white">
               {topCollab?.name.split(" ")[0] ?? "N/A"}
             </p>
@@ -676,12 +690,17 @@ export default async function DashboardPage({
                 : "Sin colaboradores asignados"}
             </p>
           </div>
+          </Link>
 
           {/* Pendiente facturar */}
-          <div className="rounded-lg border border-emerald-800/60 bg-emerald-950/20 p-4">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
-              Pendiente facturar
-            </p>
+          <Link href="/economic" className="group block">
+          <div className="rounded-lg border border-emerald-800/60 bg-emerald-950/20 p-4 transition-colors hover:border-emerald-600/80 cursor-pointer">
+            <div className="flex items-center justify-between">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+                Pendiente facturar
+              </p>
+              <span className="text-[10px] text-gray-600 transition-colors group-hover:text-emerald-400">Ver →</span>
+            </div>
             <p className="truncate text-lg font-bold text-white">{money(pendingInvoicing)}</p>
             {totalCartera > 0 && pendingInvoicing > 0 ? (
               <div className="mt-2">
@@ -704,6 +723,7 @@ export default async function DashboardPage({
               </p>
             )}
           </div>
+          </Link>
         </div>
 
         {/* Top 5 contratos + Equipo activo */}
