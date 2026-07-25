@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Role } from "@/generated/prisma/enums";
 import { ClientsIcon, DashboardIcon, HistoryIcon, LogoIcon, PlusIcon, TeamIcon } from "@/components/ui/icons";
 
@@ -8,11 +11,6 @@ const roleLabel: Record<Role, string> = {
   COLABORADOR: "Colaborador",
 };
 
-// Mismo lenguaje visual que el SPA original (components/Sidebar.tsx):
-// fondo bg-gray-800, ítem activo en sky-500, angosta en mobile (icon-only,
-// w-16) y completa en desktop (md:w-64). Server component — sin estado de
-// "vista activa" propio porque hoy solo hay una sección persistente
-// (Dashboard); se agrega si suman más secciones (Etapa post-MVP).
 export function Sidebar({
   userLabel,
   role,
@@ -22,6 +20,15 @@ export function Sidebar({
   role: Role;
   logoutAction: () => Promise<void>;
 }) {
+  const pathname = usePathname();
+
+  const navClass = (href: string, exact = false) => {
+    const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+    return active
+      ? "flex items-center w-full px-4 py-3 text-sm font-medium bg-sky-500 text-white"
+      : "flex items-center w-full px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-white";
+  };
+
   return (
     <aside className="fixed top-0 left-0 h-full w-16 md:w-64 bg-gray-800 text-white flex flex-col z-10 shadow-lg">
       <div className="flex items-center justify-center md:justify-start md:px-4 h-20 border-b border-gray-700">
@@ -30,45 +37,30 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 mt-6">
-        <Link
-          href="/dashboard"
-          className="flex items-center w-full px-4 py-3 text-sm font-medium bg-sky-500 text-white"
-        >
+        <Link href="/dashboard" className={navClass("/dashboard", true)}>
           <DashboardIcon className="h-6 w-6" />
           <span className="ml-4 hidden md:inline">Dashboard</span>
         </Link>
         {role === Role.GESTOR && (
-          <Link
-            href="/projects/new"
-            className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
-          >
+          <Link href="/projects/new" className={navClass("/projects/new", true)}>
             <PlusIcon className="h-6 w-6" />
             <span className="ml-4 hidden md:inline">Nuevo proyecto</span>
           </Link>
         )}
         {(role === Role.GESTOR || role === Role.GERENCIA) && (
-          <Link
-            href="/clients"
-            className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
-          >
+          <Link href="/clients" className={navClass("/clients")}>
             <ClientsIcon className="h-6 w-6" />
             <span className="ml-4 hidden md:inline">Clientes</span>
           </Link>
         )}
         {role === Role.GERENCIA && (
-          <Link
-            href="/users"
-            className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
-          >
+          <Link href="/users" className={navClass("/users")}>
             <TeamIcon className="h-6 w-6" />
             <span className="ml-4 hidden md:inline">Usuarios</span>
           </Link>
         )}
         {role === Role.GERENCIA && (
-          <Link
-            href="/audit"
-            className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
-          >
+          <Link href="/audit" className={navClass("/audit", true)}>
             <HistoryIcon className="h-6 w-6" />
             <span className="ml-4 hidden md:inline">Historial</span>
           </Link>
