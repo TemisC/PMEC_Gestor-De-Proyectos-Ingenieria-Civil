@@ -347,12 +347,13 @@ export default async function DashboardPage({
     const projects = await prisma.project.findMany({
       where: { managerId: userId, status: showArchived ? "ARCHIVED" : "ACTIVE" },
       include: {
+        client: true,
         agreement: true,
         additionals: true,
         invoices: true,
         timeEntries: true,
         members: { include: { user: true } },
-        externalCollaborators: { include: { payments: true } },
+        externalCollaborators: { include: { payments: true, additionals: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -371,8 +372,67 @@ export default async function DashboardPage({
       return { project: p, totalBudget, totalInvoiced, profitPct, atRisk };
     });
 
-    const atRiskCount = rows.filter((r) => r.atRisk).length;
+    // ── KPI 1: Empresa top ─────────────────────────────────────────────
+    const clientCountMap = new Map<string, { name: string; count: number }>();
+    for (const p of projects) {
+      if (p.client) {
+        const entry = clientCountMap.get(p.client.id) ?? { name: p.client.name, count: 0 };
+        entry.count++;
+        clientCountMap.set(p.client.id, entry);
+      }
+    }
+    const topClient = [...clientCountMap.values()].sort((a, b) => b.count - a.count)[0] ?? null;
+    const totalClientProjects = projects.filter((p) => p.client).length;
+
+    // ── KPI 2: Pendiente pago a externos ──────────────────────────────
+    const pendingPayment = Math.max(
+      0,
+      projects.reduce((total, p) => {
+        return (
+          total +
+          p.externalCollaborators.reduce((sum, ec) => {
+            const agreed = ec.agreementAmount ?? 0;
+            const extras = ec.additionals.reduce((s, a) => s + a.amount, 0);
+            const paid = ec.payments.reduce((s, pay) => s + pay.amount, 0);
+            return sum + (agreed + extras - paid);
+          }, 0)
+        );
+      }, 0),
+    );
+
+    // ── KPI 3: Colaborador más activo ──────────────────────────────────
+    const collabCountMap = new Map<string, { name: string; count: number }>();
+    for (const p of projects) {
+      for (const m of p.members) {
+        const name = m.user.name ?? m.user.email;
+        const entry = collabCountMap.get(m.userId) ?? { name, count: 0 };
+        entry.count++;
+        collabCountMap.set(m.userId, entry);
+      }
+    }
+    const sortedCollabs = [...collabCountMap.values()].sort((a, b) => b.count - a.count);
+    const topCollab = sortedCollabs[0] ?? null;
+    const topCollabs = sortedCollabs.slice(0, 5);
+
+    // ── KPI 4: Pendiente de facturar ───────────────────────────────────
     const totalCartera = rows.reduce((s, r) => s + r.totalBudget, 0);
+    const totalFacturado = rows.reduce((s, r) => s + r.totalInvoiced, 0);
+    const pendingInvoicing = Math.max(0, totalCartera - totalFacturado);
+    const totalAgreement = projects.reduce((s, p) => s + (p.agreement?.amount ?? 0), 0);
+    const totalExtras = projects.reduce(
+      (s, p) => s + p.additionals.reduce((ss, a) => ss + a.amount, 0),
+      0,
+    );
+    const acuerdoPct = totalCartera > 0 ? (totalAgreement / totalCartera) * 100 : 0;
+    const extrasPct = totalCartera > 0 ? (totalExtras / totalCartera) * 100 : 0;
+
+    // ── Top 5 contratos ────────────────────────────────────────────────
+    const top5 = [...rows]
+      .filter((r) => r.totalBudget > 0)
+      .sort((a, b) => b.totalBudget - a.totalBudget)
+      .slice(0, 5);
+
+    const atRiskCount = rows.filter((r) => r.atRisk).length;
 
     // Filtrado + paginación de la lista (KPIs siempre sobre el total)
     const filteredRows = q
@@ -383,45 +443,172 @@ export default async function DashboardPage({
     return (
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">
-            Hola, {session.user.name ?? session.user.email}
-          </h1>
-          <p className="text-sm text-gray-400">Tus proyectos</p>
+          <h1 className="text-2xl font-bold text-white">Resumen de Gestión</h1>
+          <p className="text-sm text-gray-400">
+            Hola, {session.user.name ?? session.user.email} ·{" "}
+            {showArchived ? "proyectos archivados" : `${projects.length} proyecto${projects.length !== 1 ? "s" : ""} activo${projects.length !== 1 ? "s" : ""}`}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card className="flex items-center gap-3">
-            <TrendingUpIcon className="h-8 w-8 shrink-0 text-sky-400" />
-            <div>
-              <p className="text-2xl font-bold text-white">{projects.length}</p>
-              <p className="text-xs text-gray-400">Proyectos activos</p>
-            </div>
-          </Card>
-          <Card className="flex items-center gap-3">
-            <ReceiptIcon className="h-8 w-8 shrink-0 text-emerald-400" />
-            <div className="min-w-0">
-              <p className="truncate text-lg font-bold text-white">{money(totalCartera)}</p>
-              <p className="text-xs text-gray-400">Presupuesto total</p>
-            </div>
-          </Card>
-          <Card className="flex items-center gap-3">
-            <AlertIcon
-              className={`h-8 w-8 shrink-0 ${atRiskCount > 0 ? "text-red-400" : "text-green-400"}`}
-            />
-            <div>
-              <p className="text-2xl font-bold text-white">{atRiskCount}</p>
-              <p className="text-xs text-gray-400">
-                {atRiskCount === 1 ? "proyecto en riesgo" : "proyectos en riesgo"}
+        {/* 4 KPIs — misma estructura visual que el SPA */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {/* Empresa top */}
+          <div className="rounded-lg border border-blue-800/60 bg-blue-950/20 p-4">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-blue-400">
+              Empresa top
+            </p>
+            <p className="truncate text-lg font-bold text-white">{topClient?.name ?? "N/A"}</p>
+            <p className="mt-1 text-xs text-gray-400">
+              {topClient
+                ? `${topClient.count} proyecto${topClient.count !== 1 ? "s" : ""} / ${totalClientProjects} con cliente`
+                : "Sin proyectos con cliente"}
+            </p>
+          </div>
+
+          {/* Pendiente pago */}
+          <div className="rounded-lg border border-red-800/60 bg-red-950/20 p-4">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-red-400">
+              Pendiente pago
+            </p>
+            <p className="truncate text-lg font-bold text-white">{money(pendingPayment)}</p>
+            <p className="mt-1 text-xs text-gray-400">A colaboradores externos</p>
+          </div>
+
+          {/* Colaborador activo */}
+          <div className="rounded-lg border border-pink-800/60 bg-pink-950/20 p-4">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-pink-400">
+              Colaborador activo
+            </p>
+            <p className="truncate text-lg font-bold text-white">
+              {topCollab?.name.split(" ")[0] ?? "N/A"}
+            </p>
+            <p className="mt-1 text-xs text-gray-400">
+              {topCollab
+                ? `En ${topCollab.count} proyecto${topCollab.count !== 1 ? "s" : ""} activo${topCollab.count !== 1 ? "s" : ""}`
+                : "Sin colaboradores asignados"}
+            </p>
+          </div>
+
+          {/* Pendiente facturar */}
+          <div className="rounded-lg border border-emerald-800/60 bg-emerald-950/20 p-4">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+              Pendiente facturar
+            </p>
+            <p className="truncate text-lg font-bold text-white">{money(pendingInvoicing)}</p>
+            {totalCartera > 0 && pendingInvoicing > 0 ? (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
+                  <span>Distribución</span>
+                  <span>Total: 100%</span>
+                </div>
+                <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-700">
+                  <div className="bg-sky-500" style={{ width: `${acuerdoPct}%` }} />
+                  <div className="bg-violet-500" style={{ width: `${extrasPct}%` }} />
+                </div>
+                <div className="mt-1 flex justify-between text-[10px]">
+                  <span className="text-sky-400">Acuerdo {acuerdoPct.toFixed(0)}%</span>
+                  <span className="text-violet-400">Extras {extrasPct.toFixed(0)}%</span>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-gray-400">
+                {totalCartera === 0 ? "Sin presupuesto cargado" : "Todo facturado"}
               </p>
-            </div>
+            )}
+          </div>
+        </div>
+
+        {/* Top 5 contratos + Equipo activo */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+              Top 5 contratos (importe)
+            </h2>
+            {top5.length === 0 ? (
+              <p className="text-xs text-gray-600">Sin proyectos con presupuesto cargado.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-500">
+                      <th className="pb-2 font-medium">Proyecto</th>
+                      <th className="pb-2 font-medium">Cliente</th>
+                      <th className="pb-2 text-right font-medium">Presupuesto</th>
+                      <th className="pb-2 text-right font-medium">Margen</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {top5.map(({ project, totalBudget, profitPct, atRisk }) => (
+                      <tr key={project.id}>
+                        <td className="py-2">
+                          <Link
+                            href={`/projects/${project.id}`}
+                            className="block max-w-[140px] truncate font-medium text-white hover:text-sky-400"
+                          >
+                            {project.name}
+                          </Link>
+                        </td>
+                        <td className="max-w-[100px] truncate py-2 text-xs text-gray-400">
+                          {project.client?.name ?? "—"}
+                        </td>
+                        <td className="py-2 text-right text-xs text-gray-400">
+                          {money(totalBudget)}
+                        </td>
+                        <td className="py-2 text-right">
+                          <MarginBadge pct={profitPct} atRisk={atRisk} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+              Equipo activo
+            </h2>
+            {topCollabs.length === 0 ? (
+              <p className="text-xs text-gray-600">Sin colaboradores asignados.</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {topCollabs.map((c, i) => (
+                  <li key={c.name} className="flex items-center justify-between">
+                    <span
+                      className={`text-sm font-medium ${i === 0 ? "text-pink-400" : "text-white"}`}
+                    >
+                      {c.name}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-700">
+                        <div
+                          className={`h-full rounded-full ${i === 0 ? "bg-pink-500" : "bg-sky-700"}`}
+                          style={{
+                            width: `${topCollabs[0].count > 0 ? (c.count / topCollabs[0].count) * 100 : 0}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="w-16 text-right text-xs text-gray-400">
+                        {c.count} proy.
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
         </div>
 
+        {/* Lista de proyectos */}
         <Card>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
               Proyectos{showArchived ? " archivados" : ""} ({filteredRows.length}
               {q && ` de ${rows.length}`})
+              {atRiskCount > 0 && !showArchived && (
+                <span className="ml-2 text-red-400">· {atRiskCount} en riesgo</span>
+              )}
             </h2>
             <div className="flex items-center gap-3">
               <SearchInput placeholder="Buscar proyecto…" />
