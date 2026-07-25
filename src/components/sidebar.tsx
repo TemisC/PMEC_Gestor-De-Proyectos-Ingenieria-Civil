@@ -3,7 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Role } from "@/generated/prisma/enums";
-import { ClientsIcon, DashboardIcon, HistoryIcon, LogoIcon, PlusIcon, TeamIcon } from "@/components/ui/icons";
+import {
+  ClientsIcon,
+  DashboardIcon,
+  EconomicIcon,
+  ExternalCollabIcon,
+  HistoryIcon,
+  LogoIcon,
+  PlusIcon,
+  TeamGlobalIcon,
+  TeamIcon,
+} from "@/components/ui/icons";
 
 const roleLabel: Record<Role, string> = {
   GERENCIA: "Gerencia",
@@ -45,6 +55,24 @@ export function Sidebar({
           <Link href="/projects/new" className={navClass("/projects/new", true)}>
             <PlusIcon className="h-6 w-6" />
             <span className="ml-4 hidden md:inline">Nuevo proyecto</span>
+          </Link>
+        )}
+        {role === Role.GESTOR && (
+          <Link href="/economic" className={navClass("/economic")}>
+            <EconomicIcon className="h-6 w-6" />
+            <span className="ml-4 hidden md:inline">Seguimiento Económico</span>
+          </Link>
+        )}
+        {role === Role.GESTOR && (
+          <Link href="/team" className={navClass("/team")}>
+            <TeamGlobalIcon className="h-6 w-6" />
+            <span className="ml-4 hidden md:inline">Equipo Global</span>
+          </Link>
+        )}
+        {role === Role.GESTOR && (
+          <Link href="/collaborators" className={navClass("/collaborators")}>
+            <ExternalCollabIcon className="h-6 w-6" />
+            <span className="ml-4 hidden md:inline">Colaboradores</span>
           </Link>
         )}
         {(role === Role.GESTOR || role === Role.GERENCIA) && (
