@@ -79,6 +79,7 @@ export default async function DashboardPage({
         agreement: true,
         additionals: true,
         invoices: true,
+        plannedInvoices: true,
         timeEntries: true,
         members: { include: { user: true } },
         externalCollaborators: { include: { payments: true } },
@@ -111,7 +112,7 @@ export default async function DashboardPage({
     // Ranking de gestores
     const byManager = new Map<
       string,
-      { name: string; count: number; budget: number; profit: number }
+      { name: string; count: number; budget: number; invoiced: number; profit: number }
     >();
     for (const r of rows) {
       const mgr = r.project.manager;
@@ -119,10 +120,12 @@ export default async function DashboardPage({
         name: mgr.name ?? mgr.email,
         count: 0,
         budget: 0,
+        invoiced: 0,
         profit: 0,
       };
       entry.count++;
       entry.budget += r.totalBudget;
+      entry.invoiced += r.totalInvoiced;
       entry.profit += r.profit;
       byManager.set(mgr.id, entry);
     }
@@ -131,6 +134,38 @@ export default async function DashboardPage({
       const mb = b.budget > 0 ? b.profit / b.budget : 0;
       return ma - mb; // peor primero
     });
+
+    // ── Gráfica 1: distribución de salud de cartera ───────────────────
+    const rowsConPpto = rows.filter((r) => r.totalBudget > 0);
+    const saludable = rowsConPpto.filter((r) => r.profitPct >= 50).length;
+    const atencion = rowsConPpto.filter((r) => r.profitPct >= 30 && r.profitPct < 50).length;
+    const critico = rowsConPpto.filter((r) => r.profitPct < 30).length;
+    const sinPpto = rows.filter((r) => r.totalBudget === 0).length;
+    const totalProy = rows.length;
+    const cartPct = (n: number) => (totalProy > 0 ? (n / totalProy) * 100 : 0);
+
+    // ── Gráfica 2: presupuesto vs facturado por gestor ────────────────
+    const maxBudgetGestor = Math.max(...gestores.map((g) => g.budget), 1);
+
+    // ── Gráfica 3: próximos cobros previstos (3 meses) ────────────────
+    const nowDate = new Date();
+    const upcomingMonths = [0, 1, 2].map((offset) => {
+      const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + offset, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("es-ES", { month: "short", year: "numeric" });
+      return { key, label, amount: 0 };
+    });
+    if (!showArchived) {
+      for (const p of projects) {
+        for (const pi of p.plannedInvoices) {
+          if (pi.invoiced) continue;
+          const key = `${pi.date.getFullYear()}-${String(pi.date.getMonth() + 1).padStart(2, "0")}`;
+          const month = upcomingMonths.find((m) => m.key === key);
+          if (month) month.amount += pi.amount;
+        }
+      }
+    }
+    const maxUpcoming = Math.max(...upcomingMonths.map((m) => m.amount), 1);
 
     // Lista completa ordenada: sin presupuesto al fondo, con presupuesto por margen asc
     const sorted = [...rows].sort((a, b) => {
@@ -208,6 +243,144 @@ export default async function DashboardPage({
             </div>
           </Card>
         </div>
+
+        {/* ── Gráficas ejecutivas (solo cartera activa con datos) ── */}
+        {!showArchived && rows.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+
+            {/* Gráfica 1 — Salud de la cartera */}
+            <Card>
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Salud de la cartera
+              </h2>
+              <div className="flex h-5 w-full overflow-hidden rounded-full bg-gray-800">
+                {saludable > 0 && (
+                  <div className="bg-green-500" style={{ width: `${cartPct(saludable)}%` }} />
+                )}
+                {atencion > 0 && (
+                  <div className="bg-yellow-500" style={{ width: `${cartPct(atencion)}%` }} />
+                )}
+                {critico > 0 && (
+                  <div className="bg-red-500" style={{ width: `${cartPct(critico)}%` }} />
+                )}
+                {sinPpto > 0 && (
+                  <div className="bg-gray-700" style={{ width: `${cartPct(sinPpto)}%` }} />
+                )}
+              </div>
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-green-400">
+                    <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                    Sano (≥ 50%)
+                  </span>
+                  <span className="font-semibold text-white">{saludable}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-yellow-400">
+                    <span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />
+                    Atención (30–50%)
+                  </span>
+                  <span className="font-semibold text-white">{atencion}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-red-400">
+                    <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                    Crítico (&lt; 30%)
+                  </span>
+                  <span className="font-semibold text-white">{critico}</span>
+                </div>
+                {sinPpto > 0 && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2 text-gray-500">
+                      <span className="inline-block h-2 w-2 rounded-full bg-gray-700" />
+                      Sin presupuesto
+                    </span>
+                    <span className="font-semibold text-white">{sinPpto}</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Gráfica 2 — Presupuesto vs. Facturado por Gestor */}
+            <Card>
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Presupuesto vs. Facturado
+              </h2>
+              <div className="flex flex-col gap-4">
+                {gestores.map((g) => {
+                  const budgetW = maxBudgetGestor > 0 ? (g.budget / maxBudgetGestor) * 100 : 0;
+                  const invoicedW = g.budget > 0 ? Math.min(100, (g.invoiced / g.budget) * 100) : 0;
+                  return (
+                    <div key={g.name}>
+                      <div className="mb-1.5 flex items-center justify-between text-xs">
+                        <span className="max-w-[130px] truncate font-medium text-white">
+                          {g.name}
+                        </span>
+                        <span className="text-gray-500">{money(g.budget)}</span>
+                      </div>
+                      <div className="relative h-3 w-full overflow-hidden rounded bg-gray-800">
+                        <div
+                          className="absolute left-0 top-0 h-full rounded bg-sky-800"
+                          style={{ width: `${budgetW}%` }}
+                        />
+                      </div>
+                      <div className="relative mt-1 h-2 w-full overflow-hidden rounded bg-gray-800">
+                        <div
+                          className="absolute left-0 top-0 h-full rounded bg-emerald-500"
+                          style={{ width: `${(budgetW * invoicedW) / 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="flex items-center gap-4 text-[10px] text-gray-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-2.5 w-3 rounded bg-sky-800" /> Presupuesto
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-3 rounded bg-emerald-500" /> Facturado
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Gráfica 3 — Próximos cobros previstos */}
+            <Card>
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Próximos cobros previstos
+              </h2>
+              <div className="flex gap-3" style={{ height: "112px" }}>
+                {upcomingMonths.map((m) => {
+                  const barH =
+                    maxUpcoming > 1
+                      ? Math.round((m.amount / maxUpcoming) * 72)
+                      : 0;
+                  return (
+                    <div
+                      key={m.key}
+                      className="flex flex-1 flex-col items-center justify-end gap-1"
+                    >
+                      <span className="text-[10px] font-semibold text-emerald-400">
+                        {m.amount > 0 ? money(m.amount) : "—"}
+                      </span>
+                      <div
+                        className="w-full rounded-t bg-emerald-700"
+                        style={{ height: `${Math.max(barH, m.amount > 0 ? 6 : 0)}px` }}
+                      />
+                      <div className="h-px w-full bg-gray-700" />
+                      <span className="text-[10px] capitalize text-gray-500">{m.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {upcomingMonths.every((m) => m.amount === 0) && (
+                <p className="mt-2 text-center text-xs text-gray-600">
+                  Sin previsiones de cobro cargadas
+                </p>
+              )}
+            </Card>
+          </div>
+        )}
 
         {/* Proyectos en riesgo — solo si hay */}
         {enRiesgo.length > 0 && (
