@@ -249,10 +249,14 @@ export default async function DashboardPage({
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 
             {/* Gráfica 1 — Salud de la cartera */}
-            <Card>
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
+            <Link href="/dashboard/salud" className="block group">
+            <Card className="h-full cursor-pointer transition-colors hover:border-sky-500/50">
+              <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
                 Salud de la cartera
               </h2>
+              <span className="text-[10px] text-gray-600 transition-colors group-hover:text-sky-400">Expandir →</span>
+              </div>
               <div className="flex h-5 w-full overflow-hidden rounded-full bg-gray-800">
                 {saludable > 0 && (
                   <div className="bg-green-500" style={{ width: `${cartPct(saludable)}%` }} />
@@ -300,12 +304,17 @@ export default async function DashboardPage({
                 )}
               </div>
             </Card>
+            </Link>
 
             {/* Gráfica 2 — Presupuesto vs. Facturado por Gestor */}
-            <Card>
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
+            <Link href="/dashboard/gestores" className="block group">
+            <Card className="h-full cursor-pointer transition-colors hover:border-sky-500/50">
+              <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
                 Presupuesto vs. Facturado
               </h2>
+              <span className="text-[10px] text-gray-600 transition-colors group-hover:text-sky-400">Expandir →</span>
+              </div>
               <div className="flex flex-col gap-4">
                 {gestores.map((g) => {
                   const budgetW = maxBudgetGestor > 0 ? (g.budget / maxBudgetGestor) * 100 : 0;
@@ -343,12 +352,17 @@ export default async function DashboardPage({
                 </div>
               </div>
             </Card>
+            </Link>
 
             {/* Gráfica 3 — Próximos cobros previstos */}
-            <Card>
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
+            <Link href="/dashboard/cobros" className="block group">
+            <Card className="h-full cursor-pointer transition-colors hover:border-sky-500/50">
+              <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
                 Próximos cobros previstos
               </h2>
+              <span className="text-[10px] text-gray-600 transition-colors group-hover:text-sky-400">Expandir →</span>
+              </div>
               <div className="flex gap-3" style={{ height: "112px" }}>
                 {upcomingMonths.map((m) => {
                   const barH =
@@ -379,6 +393,7 @@ export default async function DashboardPage({
                 </p>
               )}
             </Card>
+            </Link>
           </div>
         )}
 
