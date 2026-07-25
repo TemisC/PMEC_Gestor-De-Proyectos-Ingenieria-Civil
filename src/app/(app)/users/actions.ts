@@ -13,14 +13,9 @@ import {
 } from "@/lib/schemas";
 import { logAction } from "@/lib/audit";
 
-// Admin queda fuera del alcance del MVP (sección 0.1 del plan) —
-// Gerencia asume esta función mínima mientras tanto. Re-chequea el rol
-// server-side (nunca confía en que la UI oculte el formulario).
-//
-// Acción simple (no useActionState) por consistencia con el resto de
-// las Server Actions del proyecto (createProject, logTimeEntry, etc.) —
-// todas se validan de la misma forma vía curl/tests de integración.
-export async function createUser(formData: FormData) {
+export type ActionResult = { error?: string; ok?: boolean } | null;
+
+export async function createUser(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const session = await auth();
   if (!session?.user?.id || !canManageUsers({ id: session.user.id, role: session.user.role })) {
     throw new Error("No autorizado");
@@ -34,14 +29,14 @@ export async function createUser(formData: FormData) {
     defaultHourlyRate: formData.get("defaultHourlyRate"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Datos inválidos");
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
   const existing = await prisma.user.findUnique({
     where: { email: parsed.data.email },
   });
   if (existing) {
-    throw new Error("Ya existe un usuario con ese email.");
+    return { error: "Ya existe un usuario con ese email." };
   }
 
   const hashedPassword = await bcrypt.hash(parsed.data.password, 12);
@@ -68,6 +63,7 @@ export async function createUser(formData: FormData) {
   });
 
   revalidatePath("/users");
+  return { ok: true };
 }
 
 async function assertCanManageUsers() {
@@ -79,7 +75,7 @@ async function assertCanManageUsers() {
   return { callerId: userId, callerName: session.user.name ?? session.user.email ?? null };
 }
 
-export async function updateUser(formData: FormData) {
+export async function updateUser(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const { callerId, callerName } = await assertCanManageUsers();
 
   const parsed = updateUserSchema.safeParse({
@@ -89,7 +85,7 @@ export async function updateUser(formData: FormData) {
     role: formData.get("role"),
     defaultHourlyRate: formData.get("defaultHourlyRate"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const { userId, email, name, role, defaultHourlyRate } = parsed.data;
 
@@ -100,16 +96,14 @@ export async function updateUser(formData: FormData) {
       where: { role: "GERENCIA", active: true, NOT: { id: userId } },
     });
     if (otherGerencia === 0) {
-      throw new Error(
-        "No podés cambiar tu propio rol: sos el único usuario de Gerencia activo.",
-      );
+      return { error: "No podés cambiar tu propio rol: sos el único usuario de Gerencia activo." };
     }
   }
 
   const conflict = await prisma.user.findFirst({
     where: { email, NOT: { id: userId } },
   });
-  if (conflict) throw new Error("Ya existe otro usuario con ese email.");
+  if (conflict) return { error: "Ya existe otro usuario con ese email." };
 
   await prisma.user.update({
     where: { id: userId },
@@ -131,21 +125,22 @@ export async function updateUser(formData: FormData) {
   });
 
   revalidatePath("/users");
+  return { ok: true };
 }
 
-export async function toggleUserActive(formData: FormData) {
+export async function toggleUserActive(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const { callerId, callerName } = await assertCanManageUsers();
 
   const parsed = toggleUserActiveSchema.safeParse({
     userId: formData.get("userId"),
     active: formData.get("active"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const { userId, active } = parsed.data;
 
   if (userId === callerId) {
-    throw new Error("No podés desactivarte a vos mismo.");
+    return { error: "No podés desactivarte a vos mismo." };
   }
 
   const target = await prisma.user.findUnique({ where: { id: userId } });
@@ -156,9 +151,7 @@ export async function toggleUserActive(formData: FormData) {
       where: { role: "GERENCIA", active: true, NOT: { id: userId } },
     });
     if (otherActiveGerencia === 0) {
-      throw new Error(
-        "No se puede desactivar: es el único usuario de Gerencia activo.",
-      );
+      return { error: "No se puede desactivar: es el único usuario de Gerencia activo." };
     }
   }
 
@@ -173,17 +166,18 @@ export async function toggleUserActive(formData: FormData) {
   });
 
   revalidatePath("/users");
+  return { ok: true };
 }
 
-export async function deleteUser(formData: FormData) {
+export async function deleteUser(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const { callerId, callerName } = await assertCanManageUsers();
 
   const parsed = deleteUserSchema.safeParse({ userId: formData.get("userId") });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const { userId } = parsed.data;
 
-  if (userId === callerId) throw new Error("No podés eliminarte a vos mismo.");
+  if (userId === callerId) return { error: "No podés eliminarte a vos mismo." };
 
   const [managed, assignments, entries] = await Promise.all([
     prisma.project.count({ where: { managerId: userId } }),
@@ -192,11 +186,12 @@ export async function deleteUser(formData: FormData) {
   ]);
 
   if (managed + assignments + entries > 0) {
-    throw new Error(
-      `No se puede eliminar: tiene ${managed} proyecto${managed !== 1 ? "s" : ""} como gestor, ` +
+    return {
+      error:
+        `No se puede eliminar: tiene ${managed} proyecto${managed !== 1 ? "s" : ""} como gestor, ` +
         `${assignments} asignación${assignments !== 1 ? "es" : ""} y ` +
         `${entries} entrada${entries !== 1 ? "s" : ""} de horas.`,
-    );
+    };
   }
 
   const target = await prisma.user.findUnique({ where: { id: userId } });
@@ -212,4 +207,5 @@ export async function deleteUser(formData: FormData) {
   });
 
   revalidatePath("/users");
+  return { ok: true };
 }

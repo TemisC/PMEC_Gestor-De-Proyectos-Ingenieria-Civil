@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/generated/prisma/enums";
-import { createProject } from "@/app/(app)/projects/actions";
 import { Card } from "@/components/ui/card";
+import { CreateProjectForm } from "./create-project-form";
 
 export default async function NewProjectPage() {
   const session = await auth();
@@ -22,58 +22,7 @@ export default async function NewProjectPage() {
     <div className="mx-auto flex max-w-md flex-col gap-6">
       <h1 className="text-2xl font-bold text-white">Nuevo proyecto</h1>
       <Card>
-        <form action={createProject} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="name" className="text-xs font-medium text-gray-400">
-              Nombre del proyecto
-            </label>
-            <input
-              id="name"
-              name="name"
-              required
-              className="rounded-md border border-gray-700 bg-gray-900/60 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
-            />
-          </div>
-
-          {clients.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <label htmlFor="clientId" className="text-xs font-medium text-gray-400">
-                Cliente existente
-              </label>
-              <select
-                id="clientId"
-                name="clientId"
-                className="rounded-md border border-gray-700 bg-gray-900/60 px-3 py-2 text-sm text-white"
-              >
-                <option value="">— Ninguno —</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="newClientName" className="text-xs font-medium text-gray-400">
-              O cliente nuevo (si no está en la lista de arriba)
-            </label>
-            <input
-              id="newClientName"
-              name="newClientName"
-              placeholder="Nombre del cliente"
-              className="rounded-md border border-gray-700 bg-gray-900/60 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-400"
-          >
-            Crear proyecto
-          </button>
-        </form>
+        <CreateProjectForm clients={clients} />
       </Card>
     </div>
   );

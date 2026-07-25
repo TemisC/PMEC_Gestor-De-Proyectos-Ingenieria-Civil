@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/generated/prisma/enums";
+
+export type ActionResult = { error?: string; ok?: boolean } | null;
 import {
   canLogTimeEntry,
   canManageProject,
@@ -43,7 +45,7 @@ async function assertCanManage(projectId: string) {
 // nunca confía en que la UI solo muestre el botón a quien corresponde
 // (sección 5.2 del plan: RBAC server-side en el 100% de las mutaciones).
 
-export async function createProject(formData: FormData) {
+export async function createProject(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId || session.user.role !== Role.GESTOR) {
@@ -57,7 +59,7 @@ export async function createProject(formData: FormData) {
     newClientName: formData.get("newClientName"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Datos inválidos");
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
   // Cliente global (sección 2 del plan): si se escribió un nombre nuevo,
@@ -250,7 +252,7 @@ export async function removeProjectMember(formData: FormData) {
   revalidatePath(`/projects/${parsed.data.projectId}`);
 }
 
-export async function logTimeEntry(formData: FormData) {
+export async function logTimeEntry(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const session = await auth();
   const userId = session?.user?.id;
   const parsed = logTimeEntrySchema.safeParse({
@@ -260,7 +262,7 @@ export async function logTimeEntry(formData: FormData) {
     description: formData.get("description"),
   });
   if (!userId || !parsed.success) {
-    throw new Error(parsed.success ? "No autorizado" : parsed.error.issues[0]?.message);
+    return { error: parsed.success ? "No autorizado" : parsed.error.issues[0]?.message };
   }
 
   const project = await prisma.project.findUnique({
@@ -292,6 +294,7 @@ export async function logTimeEntry(formData: FormData) {
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  return { ok: true };
 }
 
 // Corrección de horas (2026-07-22): el propio Colaborador dueño de la

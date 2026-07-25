@@ -27,7 +27,6 @@ import {
 import {
   addProjectMember,
   deleteTimeEntry,
-  logTimeEntry,
   removeProjectMember,
   setProjectStatus,
   updateProject,
@@ -39,6 +38,7 @@ import { FinancialsSection } from "./financials-section";
 import { ExternalCollaboratorsSection } from "./external-collaborators-section";
 import { CashflowSection } from "./cashflow-section";
 import { AuditSection } from "../audit-section";
+import { LogTimeEntryForm } from "./log-time-entry-form";
 
 export default async function ProjectDetailPage({
   params,
@@ -352,55 +352,7 @@ export default async function ProjectDetailPage({
           <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
             Cargar horas
           </h2>
-          <form action={logTimeEntry} className="flex flex-col gap-3">
-            <input type="hidden" name="projectId" value={project.id} />
-            <div className="flex gap-3">
-              <div className="flex flex-1 flex-col gap-1">
-                <label htmlFor="date" className="text-xs text-gray-400">
-                  Fecha
-                </label>
-                <input
-                  id="date"
-                  name="date"
-                  type="date"
-                  required
-                  defaultValue={new Date().toISOString().slice(0, 10)}
-                  className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1.5 text-sm text-white"
-                />
-              </div>
-              <div className="flex w-24 flex-col gap-1">
-                <label htmlFor="hours" className="text-xs text-gray-400">
-                  Horas
-                </label>
-                <input
-                  id="hours"
-                  name="hours"
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  max="24"
-                  required
-                  className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1.5 text-sm text-white"
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="description" className="text-xs text-gray-400">
-                Descripción (opcional)
-              </label>
-              <input
-                id="description"
-                name="description"
-                className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1.5 text-sm text-white"
-              />
-            </div>
-            <button
-              type="submit"
-              className="self-start rounded-md bg-sky-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-400"
-            >
-              Cargar
-            </button>
-          </form>
+          <LogTimeEntryForm projectId={project.id} />
         </Card>
       )}
 

@@ -1,13 +1,19 @@
-import { createUser } from "@/app/(app)/users/actions";
+"use client";
 
-// Form simple (sin useActionState) por consistencia con el resto de las
-// Server Actions del proyecto — si la validación falla, se ve el error
-// genérico de Next.js. Es un formulario de uso poco frecuente (alta de
-// usuarios, solo Gerencia), no justifica una UX de error más elaborada
-// todavía.
+import { useActionState, useEffect, useRef } from "react";
+import { createUser } from "@/app/(app)/users/actions";
+import type { ActionResult } from "@/app/(app)/users/actions";
+
 export function CreateUserForm() {
+  const [state, action, pending] = useActionState<ActionResult, FormData>(createUser, null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state?.ok) formRef.current?.reset();
+  }, [state]);
+
   return (
-    <form action={createUser} className="flex flex-col gap-3">
+    <form ref={formRef} action={action} className="flex flex-col gap-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label htmlFor="name" className="text-xs text-gray-400">
@@ -74,11 +80,21 @@ export function CreateUserForm() {
         </div>
       </div>
 
+      {state?.error && (
+        <p className="rounded-md bg-red-900/30 px-3 py-2 text-sm text-red-400">{state.error}</p>
+      )}
+      {state?.ok && (
+        <p className="rounded-md bg-green-900/30 px-3 py-2 text-sm text-green-400">
+          Guardado correctamente.
+        </p>
+      )}
+
       <button
         type="submit"
-        className="self-start rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-400"
+        disabled={pending}
+        className="self-start rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Crear usuario
+        {pending ? "Guardando..." : "Crear usuario"}
       </button>
     </form>
   );
