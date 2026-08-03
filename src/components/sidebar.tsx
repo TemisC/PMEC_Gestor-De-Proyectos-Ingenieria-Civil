@@ -9,6 +9,7 @@ import {
   EconomicIcon,
   ExternalCollabIcon,
   HistoryIcon,
+  ImportIcon,
   LogoIcon,
   PlusIcon,
   TeamGlobalIcon,
@@ -55,6 +56,12 @@ export function Sidebar({
           <Link href="/projects/new" className={navClass("/projects/new", true)}>
             <PlusIcon className="h-6 w-6" />
             <span className="ml-4 hidden md:inline">Nuevo proyecto</span>
+          </Link>
+        )}
+        {role === Role.GESTOR && (
+          <Link href="/projects/import" className={navClass("/projects/import", true)}>
+            <ImportIcon className="h-6 w-6" />
+            <span className="ml-4 hidden md:inline">Importar JSON</span>
           </Link>
         )}
         {role === Role.GESTOR && (
