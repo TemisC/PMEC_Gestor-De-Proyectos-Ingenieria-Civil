@@ -159,12 +159,21 @@ export default async function ProjectDetailPage({
             </span>
           )}
           {canSeeFinancials && (
-            <a
-              href={`/projects/${project.id}/report`}
-              className="ml-auto rounded-md border border-gray-700 px-2 py-0.5 text-xs text-gray-300 hover:border-sky-500 hover:text-sky-400"
-            >
-              Descargar PDF
-            </a>
+            <div className="ml-auto flex items-center gap-2">
+              <a
+                href={`/api/projects/${project.id}/export`}
+                className="rounded-md border border-gray-700 px-2 py-0.5 text-xs text-gray-300 hover:border-emerald-500 hover:text-emerald-400"
+                title="Exportar proyecto en formato JSON compatible con el SPA"
+              >
+                Exportar JSON
+              </a>
+              <a
+                href={`/projects/${project.id}/report`}
+                className="rounded-md border border-gray-700 px-2 py-0.5 text-xs text-gray-300 hover:border-sky-500 hover:text-sky-400"
+              >
+                Descargar PDF
+              </a>
+            </div>
           )}
         </div>
         <p className="text-sm text-gray-400">
