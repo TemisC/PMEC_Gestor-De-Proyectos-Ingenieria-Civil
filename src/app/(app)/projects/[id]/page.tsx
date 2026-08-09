@@ -32,6 +32,7 @@ import {
   updateProject,
   updateTimeEntry,
 } from "@/app/(app)/projects/actions";
+import { ActionForm, SubmitButton, DeleteButton } from "@/components/action-form";
 import { Card } from "@/components/ui/card";
 import { TrashIcon } from "@/components/ui/icons";
 import { FinancialsSection } from "./financials-section";
@@ -377,7 +378,7 @@ export default async function ProjectDetailPage({
                   className="flex flex-col gap-2 rounded-md border border-gray-700 bg-gray-900/40 px-3 py-2 text-sm text-white"
                 >
                   {canManageEntry ? (
-                    <form action={updateTimeEntry} className="flex flex-wrap items-end gap-2">
+                    <ActionForm action={updateTimeEntry} className="flex flex-wrap items-end gap-2">
                       <input type="hidden" name="timeEntryId" value={entry.id} />
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-gray-400">Fecha</label>
@@ -413,13 +414,8 @@ export default async function ProjectDetailPage({
                           ({entry.user.name ?? entry.user.email})
                         </span>
                       )}
-                      <button
-                        type="submit"
-                        className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
-                      >
-                        Guardar
-                      </button>
-                    </form>
+                      <SubmitButton small>Guardar</SubmitButton>
+                    </ActionForm>
                   ) : (
                     <span>
                       {entry.date.toISOString().slice(0, 10)} — {entry.hours}h
@@ -435,15 +431,12 @@ export default async function ProjectDetailPage({
                     </span>
                   )}
                   {canManageEntry && (
-                    <form action={deleteTimeEntry} className="self-end">
+                    <ActionForm action={deleteTimeEntry} className="self-end">
                       <input type="hidden" name="timeEntryId" value={entry.id} />
-                      <button
-                        type="submit"
-                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
-                      >
+                      <DeleteButton>
                         <TrashIcon className="h-3.5 w-3.5" /> Eliminar
-                      </button>
-                    </form>
+                      </DeleteButton>
+                    </ActionForm>
                   )}
                 </li>
               );

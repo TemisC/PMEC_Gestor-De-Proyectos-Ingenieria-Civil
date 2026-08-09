@@ -10,6 +10,7 @@ import {
   updateExternalPayment,
 } from "@/app/(app)/projects/external-collaborators-actions";
 import { calculateExternalCost, calculatePendingExternalPayment } from "@/lib/financials";
+import { ActionForm, SubmitButton, DeleteButton } from "@/components/action-form";
 import { Card } from "@/components/ui/card";
 import { TrashIcon } from "@/components/ui/icons";
 
@@ -86,7 +87,7 @@ export function ExternalCollaboratorsSection({
 
             {canEdit && (
               <div className="flex flex-wrap items-end gap-2 border-t border-gray-700 pt-2">
-                <form action={updateExternalCollaborator} className="flex flex-wrap items-end gap-2">
+                <ActionForm action={updateExternalCollaborator} className="flex flex-wrap items-end gap-2">
                   <input type="hidden" name="externalCollaboratorId" value={c.id} />
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-gray-400">Nombre</label>
@@ -130,22 +131,14 @@ export function ExternalCollaboratorsSection({
                       className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
                     />
                   </div>
-                  <button
-                    type="submit"
-                    className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
-                  >
-                    Guardar
-                  </button>
-                </form>
-                <form action={deleteExternalCollaborator}>
+                  <SubmitButton small>Guardar</SubmitButton>
+                </ActionForm>
+                <ActionForm action={deleteExternalCollaborator}>
                   <input type="hidden" name="externalCollaboratorId" value={c.id} />
-                  <button
-                    type="submit"
-                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
-                  >
+                  <DeleteButton>
                     <TrashIcon className="h-3.5 w-3.5" /> Eliminar colaborador
-                  </button>
-                </form>
+                  </DeleteButton>
+                </ActionForm>
               </div>
             )}
 
@@ -154,7 +147,7 @@ export function ExternalCollaboratorsSection({
                 {c.additionals.map((a) =>
                   canEdit ? (
                     <li key={a.id} className="flex flex-wrap items-end gap-2">
-                      <form
+                      <ActionForm
                         action={updateExternalAdditional}
                         className="flex flex-wrap items-end gap-2"
                       >
@@ -171,22 +164,14 @@ export function ExternalCollaboratorsSection({
                           defaultValue={a.amount}
                           className="w-24 rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
                         />
-                        <button
-                          type="submit"
-                          className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
-                        >
-                          Guardar
-                        </button>
-                      </form>
-                      <form action={deleteExternalAdditional}>
+                        <SubmitButton small>Guardar</SubmitButton>
+                      </ActionForm>
+                      <ActionForm action={deleteExternalAdditional}>
                         <input type="hidden" name="externalAdditionalId" value={a.id} />
-                        <button
-                          type="submit"
-                          className="flex items-center gap-1 text-red-400 hover:text-red-300"
-                        >
+                        <DeleteButton>
                           <TrashIcon className="h-3 w-3" /> Eliminar
-                        </button>
-                      </form>
+                        </DeleteButton>
+                      </ActionForm>
                     </li>
                   ) : (
                     <li key={a.id}>
@@ -202,7 +187,7 @@ export function ExternalCollaboratorsSection({
                 {c.payments.map((p) =>
                   canEdit ? (
                     <li key={p.id} className="flex flex-wrap items-end gap-2">
-                      <form
+                      <ActionForm
                         action={updateExternalPayment}
                         className="flex flex-wrap items-end gap-2"
                       >
@@ -225,22 +210,14 @@ export function ExternalCollaboratorsSection({
                           defaultValue={p.description ?? ""}
                           className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
                         />
-                        <button
-                          type="submit"
-                          className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
-                        >
-                          Guardar
-                        </button>
-                      </form>
-                      <form action={deleteExternalPayment}>
+                        <SubmitButton small>Guardar</SubmitButton>
+                      </ActionForm>
+                      <ActionForm action={deleteExternalPayment}>
                         <input type="hidden" name="externalPaymentId" value={p.id} />
-                        <button
-                          type="submit"
-                          className="flex items-center gap-1 text-red-400 hover:text-red-300"
-                        >
+                        <DeleteButton>
                           <TrashIcon className="h-3 w-3" /> Eliminar
-                        </button>
-                      </form>
+                        </DeleteButton>
+                      </ActionForm>
                     </li>
                   ) : (
                     <li key={p.id}>
@@ -254,7 +231,7 @@ export function ExternalCollaboratorsSection({
 
             {canEdit && (
               <div className="flex flex-wrap gap-4 border-t border-gray-700 pt-2">
-                <form action={addExternalAdditional} className="flex items-end gap-2">
+                <ActionForm action={addExternalAdditional} className="flex items-end gap-2">
                   <input type="hidden" name="externalCollaboratorId" value={c.id} />
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-gray-400">Adicional</label>
@@ -271,15 +248,10 @@ export function ExternalCollaboratorsSection({
                     placeholder="monto"
                     className="w-24 rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
                   />
-                  <button
-                    type="submit"
-                    className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
-                  >
-                    Agregar
-                  </button>
-                </form>
+                  <SubmitButton small>Agregar</SubmitButton>
+                </ActionForm>
 
-                <form action={addExternalPayment} className="flex items-end gap-2">
+                <ActionForm action={addExternalPayment} className="flex items-end gap-2">
                   <input type="hidden" name="externalCollaboratorId" value={c.id} />
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-gray-400">Pago</label>
@@ -297,13 +269,8 @@ export function ExternalCollaboratorsSection({
                     placeholder="monto"
                     className="w-24 rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
                   />
-                  <button
-                    type="submit"
-                    className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
-                  >
-                    Registrar pago
-                  </button>
-                </form>
+                  <SubmitButton small>Registrar pago</SubmitButton>
+                </ActionForm>
               </div>
             )}
           </div>
@@ -311,7 +278,7 @@ export function ExternalCollaboratorsSection({
       })}
 
       {canEdit && (
-        <form
+        <ActionForm
           action={addExternalCollaborator}
           className="flex flex-wrap items-end gap-2 border-t border-gray-700 pt-3"
         >
@@ -355,13 +322,8 @@ export function ExternalCollaboratorsSection({
               className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
             />
           </div>
-          <button
-            type="submit"
-            className="rounded-md bg-sky-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-400"
-          >
-            Agregar colaborador externo
-          </button>
-        </form>
+          <SubmitButton>Agregar colaborador externo</SubmitButton>
+        </ActionForm>
       )}
     </Card>
   );

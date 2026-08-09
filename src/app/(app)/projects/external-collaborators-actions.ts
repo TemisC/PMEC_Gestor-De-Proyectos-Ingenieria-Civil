@@ -16,6 +16,7 @@ import {
   updateExternalPaymentSchema,
 } from "@/lib/schemas";
 import { logAction } from "@/lib/audit";
+import type { ActionResult } from "@/components/action-form";
 
 // Colaboradores externos: mismo criterio que el resto de lo financiero
 // (financial-actions.ts) — edición exclusiva del Gestor dueño del
@@ -48,7 +49,10 @@ function money(n: number) {
   return `$${Math.round(n).toLocaleString("es-AR")}`;
 }
 
-export async function addExternalCollaborator(formData: FormData) {
+export async function addExternalCollaborator(
+  prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = addExternalCollaboratorSchema.safeParse({
     projectId: formData.get("projectId"),
     name: formData.get("name"),
@@ -57,7 +61,7 @@ export async function addExternalCollaborator(formData: FormData) {
     agreementAmount: formData.get("agreementAmount"),
     agreementUrl: formData.get("agreementUrl"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
@@ -85,9 +89,13 @@ export async function addExternalCollaborator(formData: FormData) {
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  return { ok: true };
 }
 
-export async function updateExternalCollaborator(formData: FormData) {
+export async function updateExternalCollaborator(
+  prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = updateExternalCollaboratorSchema.safeParse({
     externalCollaboratorId: formData.get("externalCollaboratorId"),
     name: formData.get("name"),
@@ -96,7 +104,7 @@ export async function updateExternalCollaborator(formData: FormData) {
     agreementAmount: formData.get("agreementAmount"),
     agreementUrl: formData.get("agreementUrl"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { collaborator, userId, userName } = await assertCanManageViaCollaborator(
     parsed.data.externalCollaboratorId,
@@ -126,16 +134,20 @@ export async function updateExternalCollaborator(formData: FormData) {
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
+  return { ok: true };
 }
 
 // Borra también sus adicionales/pagos (no hay onDelete: Cascade en el
 // schema) — en una sola transacción para no dejar registros huérfanos si
 // algo falla a mitad de camino.
-export async function deleteExternalCollaborator(formData: FormData) {
+export async function deleteExternalCollaborator(
+  prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = deleteExternalCollaboratorSchema.safeParse({
     externalCollaboratorId: formData.get("externalCollaboratorId"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { collaborator, userId, userName } = await assertCanManageViaCollaborator(
     parsed.data.externalCollaboratorId,
@@ -163,15 +175,19 @@ export async function deleteExternalCollaborator(formData: FormData) {
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
+  return { ok: true };
 }
 
-export async function addExternalAdditional(formData: FormData) {
+export async function addExternalAdditional(
+  prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = addExternalAdditionalSchema.safeParse({
     externalCollaboratorId: formData.get("externalCollaboratorId"),
     description: formData.get("description"),
     amount: formData.get("amount"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { collaborator, userId, userName } = await assertCanManageViaCollaborator(
     parsed.data.externalCollaboratorId,
@@ -195,15 +211,19 @@ export async function addExternalAdditional(formData: FormData) {
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
+  return { ok: true };
 }
 
-export async function updateExternalAdditional(formData: FormData) {
+export async function updateExternalAdditional(
+  prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = updateExternalAdditionalSchema.safeParse({
     externalAdditionalId: formData.get("externalAdditionalId"),
     description: formData.get("description"),
     amount: formData.get("amount"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const additional = await prisma.externalCollaboratorAdditional.findUnique({
     where: { id: parsed.data.externalAdditionalId },
@@ -226,13 +246,17 @@ export async function updateExternalAdditional(formData: FormData) {
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
+  return { ok: true };
 }
 
-export async function deleteExternalAdditional(formData: FormData) {
+export async function deleteExternalAdditional(
+  prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = deleteExternalAdditionalSchema.safeParse({
     externalAdditionalId: formData.get("externalAdditionalId"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const additional = await prisma.externalCollaboratorAdditional.findUnique({
     where: { id: parsed.data.externalAdditionalId },
@@ -254,16 +278,20 @@ export async function deleteExternalAdditional(formData: FormData) {
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
+  return { ok: true };
 }
 
-export async function addExternalPayment(formData: FormData) {
+export async function addExternalPayment(
+  prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = addExternalPaymentSchema.safeParse({
     externalCollaboratorId: formData.get("externalCollaboratorId"),
     date: formData.get("date"),
     amount: formData.get("amount"),
     description: formData.get("description"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { collaborator, userId, userName } = await assertCanManageViaCollaborator(
     parsed.data.externalCollaboratorId,
@@ -288,16 +316,20 @@ export async function addExternalPayment(formData: FormData) {
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
+  return { ok: true };
 }
 
-export async function updateExternalPayment(formData: FormData) {
+export async function updateExternalPayment(
+  prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = updateExternalPaymentSchema.safeParse({
     externalPaymentId: formData.get("externalPaymentId"),
     date: formData.get("date"),
     amount: formData.get("amount"),
     description: formData.get("description"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const payment = await prisma.externalCollaboratorPayment.findUnique({
     where: { id: parsed.data.externalPaymentId },
@@ -324,13 +356,17 @@ export async function updateExternalPayment(formData: FormData) {
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
+  return { ok: true };
 }
 
-export async function deleteExternalPayment(formData: FormData) {
+export async function deleteExternalPayment(
+  prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = deleteExternalPaymentSchema.safeParse({
     externalPaymentId: formData.get("externalPaymentId"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const payment = await prisma.externalCollaboratorPayment.findUnique({
     where: { id: parsed.data.externalPaymentId },
@@ -352,4 +388,5 @@ export async function deleteExternalPayment(formData: FormData) {
   });
 
   revalidatePath(`/projects/${collaborator.projectId}`);
+  return { ok: true };
 }

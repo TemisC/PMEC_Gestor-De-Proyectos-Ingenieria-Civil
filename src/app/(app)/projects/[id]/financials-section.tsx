@@ -11,6 +11,7 @@ import {
   updateInvoice,
   updatePlannedInvoice,
 } from "@/app/(app)/projects/financial-actions";
+import { ActionForm, SubmitButton, DeleteButton } from "@/components/action-form";
 import { Card } from "@/components/ui/card";
 import { AlertIcon, TrashIcon } from "@/components/ui/icons";
 
@@ -128,13 +129,13 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           <p className="text-sm text-gray-400">Sin acuerdo cargado.</p>
         )}
         {canEdit && (
-          <form action={setAgreement} className="flex flex-wrap items-end gap-2">
+          <ActionForm action={setAgreement} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="projectId" value={projectId} />
             <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={props.agreement?.amount} />
             <Field label="URL oferta" name="offerUrl" defaultValue={props.agreement?.offerUrl ?? ""} />
             <Field label="URL contrato" name="contractUrl" defaultValue={props.agreement?.contractUrl ?? ""} />
             <SubmitButton>{props.agreement ? "Actualizar" : "Guardar"}</SubmitButton>
-          </form>
+          </ActionForm>
         )}
       </div>
 
@@ -147,22 +148,19 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           {props.additionals.map((a) =>
             canEdit ? (
               <li key={a.id} className="flex flex-wrap items-end gap-2">
-                <form action={updateAdditional} className="flex flex-wrap items-end gap-2">
+                <ActionForm action={updateAdditional} className="flex flex-wrap items-end gap-2">
                   <input type="hidden" name="additionalId" value={a.id} />
                   <Field label="Descripción" name="description" defaultValue={a.description} />
                   <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={a.amount} />
                   <Field label="URL" name="url" defaultValue={a.url ?? ""} />
                   <SubmitButton small>Guardar</SubmitButton>
-                </form>
-                <form action={deleteAdditional}>
+                </ActionForm>
+                <ActionForm action={deleteAdditional}>
                   <input type="hidden" name="additionalId" value={a.id} />
-                  <button
-                    type="submit"
-                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
-                  >
+                  <DeleteButton>
                     <TrashIcon className="h-3.5 w-3.5" /> Eliminar
-                  </button>
-                </form>
+                  </DeleteButton>
+                </ActionForm>
               </li>
             ) : (
               <li key={a.id} className="text-sm">
@@ -172,13 +170,13 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           )}
         </ul>
         {canEdit && (
-          <form action={addAdditional} className="flex flex-wrap items-end gap-2">
+          <ActionForm action={addAdditional} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="projectId" value={projectId} />
             <Field label="Descripción" name="description" />
             <Field label="Monto" name="amount" type="number" step="0.01" />
             <Field label="URL (opcional)" name="url" />
             <SubmitButton>Agregar adicional</SubmitButton>
-          </form>
+          </ActionForm>
         )}
       </div>
 
@@ -191,27 +189,24 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           {props.plannedInvoices.map((p) =>
             canEdit && !p.invoiced ? (
               <li key={p.id} className="flex flex-wrap items-end gap-2">
-                <form action={updatePlannedInvoice} className="flex flex-wrap items-end gap-2">
+                <ActionForm action={updatePlannedInvoice} className="flex flex-wrap items-end gap-2">
                   <input type="hidden" name="plannedInvoiceId" value={p.id} />
                   <Field label="Descripción" name="description" defaultValue={p.description} />
                   <Field label="Fecha" name="date" type="date" defaultValue={fmtDate(p.date)} />
                   <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={p.amount} />
                   <SubmitButton small>Guardar</SubmitButton>
-                </form>
-                <form action={promotePlannedInvoice} className="flex flex-wrap items-end gap-2">
+                </ActionForm>
+                <ActionForm action={promotePlannedInvoice} className="flex flex-wrap items-end gap-2">
                   <input type="hidden" name="plannedInvoiceId" value={p.id} />
                   <Field label="URL PDF (opcional)" name="pdfUrl" />
                   <SubmitButton small>Marcar facturada</SubmitButton>
-                </form>
-                <form action={deletePlannedInvoice}>
+                </ActionForm>
+                <ActionForm action={deletePlannedInvoice}>
                   <input type="hidden" name="plannedInvoiceId" value={p.id} />
-                  <button
-                    type="submit"
-                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
-                  >
+                  <DeleteButton>
                     <TrashIcon className="h-3.5 w-3.5" /> Eliminar
-                  </button>
-                </form>
+                  </DeleteButton>
+                </ActionForm>
               </li>
             ) : (
               <li key={p.id} className="flex items-center justify-between text-sm">
@@ -228,13 +223,13 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           )}
         </ul>
         {canEdit && (
-          <form action={addPlannedInvoice} className="flex flex-wrap items-end gap-2">
+          <ActionForm action={addPlannedInvoice} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="projectId" value={projectId} />
             <Field label="Descripción" name="description" />
             <Field label="Fecha" name="date" type="date" />
             <Field label="Monto" name="amount" type="number" step="0.01" />
             <SubmitButton>Agregar prevista</SubmitButton>
-          </form>
+          </ActionForm>
         )}
       </div>
 
@@ -250,22 +245,19 @@ export function FinancialsSection(props: FinancialsSectionProps) {
             {props.invoices.map((inv) =>
               canEdit ? (
                 <li key={inv.id} className="flex flex-wrap items-end gap-2">
-                  <form action={updateInvoice} className="flex flex-wrap items-end gap-2">
+                  <ActionForm action={updateInvoice} className="flex flex-wrap items-end gap-2">
                     <input type="hidden" name="invoiceId" value={inv.id} />
                     <Field label="Fecha" name="date" type="date" defaultValue={fmtDate(inv.date)} />
                     <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={inv.amount} />
                     <Field label="URL PDF" name="pdfUrl" defaultValue={inv.pdfUrl ?? ""} />
                     <SubmitButton small>Guardar</SubmitButton>
-                  </form>
-                  <form action={deleteInvoice}>
+                  </ActionForm>
+                  <ActionForm action={deleteInvoice}>
                     <input type="hidden" name="invoiceId" value={inv.id} />
-                    <button
-                      type="submit"
-                      className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
-                    >
+                    <DeleteButton>
                       <TrashIcon className="h-3.5 w-3.5" /> Eliminar
-                    </button>
-                  </form>
+                    </DeleteButton>
+                  </ActionForm>
                 </li>
               ) : (
                 <li key={inv.id} className="text-sm">
@@ -287,7 +279,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
             {props.members.map((m) => (
               <li key={m.userId} className="flex items-center gap-2 text-sm">
                 <span className="flex-1">{m.label}</span>
-                <form action={setMemberRate} className="flex items-center gap-2">
+                <ActionForm action={setMemberRate} className="flex items-center gap-2">
                   <input type="hidden" name="projectId" value={projectId} />
                   <input type="hidden" name="userId" value={m.userId} />
                   <input
@@ -299,7 +291,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
                     className="w-24 rounded-md border border-gray-700 bg-gray-900/60 text-white px-2 py-1 text-xs"
                   />
                   <SubmitButton small>Guardar</SubmitButton>
-                </form>
+                </ActionForm>
               </li>
             ))}
           </ul>
@@ -360,26 +352,5 @@ function Field({
         className="rounded-md border border-gray-700 bg-gray-900/60 text-white px-2 py-1 text-xs"
       />
     </div>
-  );
-}
-
-function SubmitButton({
-  children,
-  small,
-}: {
-  children: React.ReactNode;
-  small?: boolean;
-}) {
-  return (
-    <button
-      type="submit"
-      className={
-        small
-          ? "rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
-          : "rounded-md bg-sky-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-400"
-      }
-    >
-      {children}
-    </button>
   );
 }

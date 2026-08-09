@@ -18,6 +18,7 @@ import {
   updatePlannedInvoiceSchema,
 } from "@/lib/schemas";
 import { logAction } from "@/lib/audit";
+import type { ActionResult } from "@/components/action-form";
 
 // Todo lo financiero (acuerdo, adicionales, previsión de facturación,
 // tarifas) es edición exclusiva del Gestor responsable — Gerencia lo ve
@@ -44,14 +45,14 @@ function money(n: number) {
   return `$${Math.round(n).toLocaleString("es-AR")}`;
 }
 
-export async function setAgreement(formData: FormData) {
+export async function setAgreement(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = setAgreementSchema.safeParse({
     projectId: formData.get("projectId"),
     amount: formData.get("amount"),
     offerUrl: formData.get("offerUrl"),
     contractUrl: formData.get("contractUrl"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
@@ -80,16 +81,17 @@ export async function setAgreement(formData: FormData) {
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  return { ok: true };
 }
 
-export async function addAdditional(formData: FormData) {
+export async function addAdditional(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = addAdditionalSchema.safeParse({
     projectId: formData.get("projectId"),
     description: formData.get("description"),
     amount: formData.get("amount"),
     url: formData.get("url"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
@@ -112,16 +114,17 @@ export async function addAdditional(formData: FormData) {
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  return { ok: true };
 }
 
-export async function updateAdditional(formData: FormData) {
+export async function updateAdditional(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = updateAdditionalSchema.safeParse({
     additionalId: formData.get("additionalId"),
     description: formData.get("description"),
     amount: formData.get("amount"),
     url: formData.get("url"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const additional = await prisma.projectAdditional.findUnique({
     where: { id: parsed.data.additionalId },
@@ -148,13 +151,14 @@ export async function updateAdditional(formData: FormData) {
   });
 
   revalidatePath(`/projects/${additional.projectId}`);
+  return { ok: true };
 }
 
-export async function deleteAdditional(formData: FormData) {
+export async function deleteAdditional(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = deleteAdditionalSchema.safeParse({
     additionalId: formData.get("additionalId"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const additional = await prisma.projectAdditional.findUnique({
     where: { id: parsed.data.additionalId },
@@ -174,9 +178,10 @@ export async function deleteAdditional(formData: FormData) {
   });
 
   revalidatePath(`/projects/${additional.projectId}`);
+  return { ok: true };
 }
 
-export async function addPlannedInvoice(formData: FormData) {
+export async function addPlannedInvoice(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = addPlannedInvoiceSchema.safeParse({
     projectId: formData.get("projectId"),
     description: formData.get("description"),
@@ -184,7 +189,7 @@ export async function addPlannedInvoice(formData: FormData) {
     amount: formData.get("amount"),
     source: formData.get("source"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
@@ -208,25 +213,26 @@ export async function addPlannedInvoice(formData: FormData) {
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  return { ok: true };
 }
 
 // Editar/borrar una previsión solo mientras no se promovió a factura real
 // (invoiced === false) — una vez facturada es un registro histórico, la
 // corrección se hace sobre la Invoice (updateInvoice/deleteInvoice).
-export async function updatePlannedInvoice(formData: FormData) {
+export async function updatePlannedInvoice(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = updatePlannedInvoiceSchema.safeParse({
     plannedInvoiceId: formData.get("plannedInvoiceId"),
     description: formData.get("description"),
     date: formData.get("date"),
     amount: formData.get("amount"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const planned = await prisma.plannedInvoice.findUnique({
     where: { id: parsed.data.plannedInvoiceId },
   });
   if (!planned) throw new Error("No encontrada");
-  if (planned.invoiced) throw new Error("Ya fue facturada, no se puede editar la previsión");
+  if (planned.invoiced) return { error: "Ya fue facturada, no se puede editar la previsión" };
   const { userId, userName } = await assertCanManage(planned.projectId);
 
   await prisma.plannedInvoice.update({
@@ -248,19 +254,20 @@ export async function updatePlannedInvoice(formData: FormData) {
   });
 
   revalidatePath(`/projects/${planned.projectId}`);
+  return { ok: true };
 }
 
-export async function deletePlannedInvoice(formData: FormData) {
+export async function deletePlannedInvoice(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = deletePlannedInvoiceSchema.safeParse({
     plannedInvoiceId: formData.get("plannedInvoiceId"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const planned = await prisma.plannedInvoice.findUnique({
     where: { id: parsed.data.plannedInvoiceId },
   });
   if (!planned) throw new Error("No encontrada");
-  if (planned.invoiced) throw new Error("Ya fue facturada, no se puede borrar la previsión");
+  if (planned.invoiced) return { error: "Ya fue facturada, no se puede borrar la previsión" };
   const { userId, userName } = await assertCanManage(planned.projectId);
 
   await prisma.plannedInvoice.delete({ where: { id: parsed.data.plannedInvoiceId } });
@@ -275,16 +282,17 @@ export async function deletePlannedInvoice(formData: FormData) {
   });
 
   revalidatePath(`/projects/${planned.projectId}`);
+  return { ok: true };
 }
 
-export async function updateInvoice(formData: FormData) {
+export async function updateInvoice(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = updateInvoiceSchema.safeParse({
     invoiceId: formData.get("invoiceId"),
     amount: formData.get("amount"),
     date: formData.get("date"),
     pdfUrl: formData.get("pdfUrl"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const invoice = await prisma.invoice.findUnique({ where: { id: parsed.data.invoiceId } });
   if (!invoice) throw new Error("No encontrada");
@@ -309,16 +317,17 @@ export async function updateInvoice(formData: FormData) {
   });
 
   revalidatePath(`/projects/${invoice.projectId}`);
+  return { ok: true };
 }
 
 // Nota de limitación aceptada: la PlannedInvoice que originó esta Invoice
 // (vía promotePlannedInvoice) no tiene FK de vuelta — queda marcada
 // invoiced=true aunque la factura real se borre acá. Ver plan_maestro.md.
-export async function deleteInvoice(formData: FormData) {
+export async function deleteInvoice(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = deleteInvoiceSchema.safeParse({
     invoiceId: formData.get("invoiceId"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const invoice = await prisma.invoice.findUnique({ where: { id: parsed.data.invoiceId } });
   if (!invoice) throw new Error("No encontrada");
@@ -336,16 +345,17 @@ export async function deleteInvoice(formData: FormData) {
   });
 
   revalidatePath(`/projects/${invoice.projectId}`);
+  return { ok: true };
 }
 
 // "Promover" una factura prevista a factura real emitida — mismo
 // concepto que el SPA original (handlePromoteToInvoice).
-export async function promotePlannedInvoice(formData: FormData) {
+export async function promotePlannedInvoice(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = promotePlannedInvoiceSchema.safeParse({
     plannedInvoiceId: formData.get("plannedInvoiceId"),
     pdfUrl: formData.get("pdfUrl"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const planned = await prisma.plannedInvoice.findUnique({
     where: { id: parsed.data.plannedInvoiceId },
@@ -380,15 +390,16 @@ export async function promotePlannedInvoice(formData: FormData) {
   });
 
   revalidatePath(`/projects/${planned.projectId}`);
+  return { ok: true };
 }
 
-export async function setMemberRate(formData: FormData) {
+export async function setMemberRate(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = setMemberRateSchema.safeParse({
     projectId: formData.get("projectId"),
     userId: formData.get("userId"),
     hourlyRate: formData.get("hourlyRate"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { userId, userName } = await assertCanManage(parsed.data.projectId);
 
@@ -417,4 +428,5 @@ export async function setMemberRate(formData: FormData) {
   });
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  return { ok: true };
 }

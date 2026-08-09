@@ -321,14 +321,14 @@ async function assertCanManageTimeEntry(timeEntryId: string) {
   return { entry, userId, userName: session.user.name ?? session.user.email ?? null };
 }
 
-export async function updateTimeEntry(formData: FormData) {
+export async function updateTimeEntry(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = updateTimeEntrySchema.safeParse({
     timeEntryId: formData.get("timeEntryId"),
     date: formData.get("date"),
     hours: formData.get("hours"),
     description: formData.get("description"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { entry, userId, userName } = await assertCanManageTimeEntry(parsed.data.timeEntryId);
 
@@ -351,13 +351,14 @@ export async function updateTimeEntry(formData: FormData) {
   });
 
   revalidatePath(`/projects/${entry.projectId}`);
+  return { ok: true };
 }
 
-export async function deleteTimeEntry(formData: FormData) {
+export async function deleteTimeEntry(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = deleteTimeEntrySchema.safeParse({
     timeEntryId: formData.get("timeEntryId"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
   const { entry, userId, userName } = await assertCanManageTimeEntry(parsed.data.timeEntryId);
 
@@ -373,4 +374,5 @@ export async function deleteTimeEntry(formData: FormData) {
   });
 
   revalidatePath(`/projects/${entry.projectId}`);
+  return { ok: true };
 }
