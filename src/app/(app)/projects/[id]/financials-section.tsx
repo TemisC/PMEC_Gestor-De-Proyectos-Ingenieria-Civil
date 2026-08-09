@@ -144,10 +144,13 @@ export function FinancialsSection(props: FinancialsSectionProps) {
         <h3 className="text-xs font-medium text-gray-400">
           Adicionales ({props.additionals.length})
         </h3>
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-2">
           {props.additionals.map((a) =>
             canEdit ? (
-              <li key={a.id} className="flex flex-wrap items-end gap-2">
+              <li
+                key={a.id}
+                className="flex flex-wrap items-end justify-between gap-2 rounded-md border border-gray-700 bg-gray-900/40 p-3"
+              >
                 <ActionForm action={updateAdditional} className="flex flex-wrap items-end gap-2">
                   <input type="hidden" name="additionalId" value={a.id} />
                   <Field label="Descripción" name="description" defaultValue={a.description} />
@@ -170,7 +173,10 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           )}
         </ul>
         {canEdit && (
-          <ActionForm action={addAdditional} className="flex flex-wrap items-end gap-2">
+          <ActionForm
+            action={addAdditional}
+            className="flex flex-wrap items-end gap-2 border-t border-gray-700 pt-3"
+          >
             <input type="hidden" name="projectId" value={projectId} />
             <Field label="Descripción" name="description" />
             <Field label="Monto" name="amount" type="number" step="0.01" />
@@ -185,27 +191,35 @@ export function FinancialsSection(props: FinancialsSectionProps) {
         <h3 className="text-xs font-medium text-gray-400">
           Previsión de facturación ({props.plannedInvoices.length})
         </h3>
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-3">
           {props.plannedInvoices.map((p) =>
             canEdit && !p.invoiced ? (
-              <li key={p.id} className="flex flex-wrap items-end gap-2">
-                <ActionForm action={updatePlannedInvoice} className="flex flex-wrap items-end gap-2">
-                  <input type="hidden" name="plannedInvoiceId" value={p.id} />
-                  <Field label="Descripción" name="description" defaultValue={p.description} />
-                  <Field label="Fecha" name="date" type="date" defaultValue={fmtDate(p.date)} />
-                  <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={p.amount} />
-                  <SubmitButton small>Guardar</SubmitButton>
-                </ActionForm>
-                <ActionForm action={promotePlannedInvoice} className="flex flex-wrap items-end gap-2">
+              <li
+                key={p.id}
+                className="flex flex-col gap-2 rounded-md border border-gray-700 bg-gray-900/40 p-3"
+              >
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <ActionForm action={updatePlannedInvoice} className="flex flex-wrap items-end gap-2">
+                    <input type="hidden" name="plannedInvoiceId" value={p.id} />
+                    <Field label="Descripción" name="description" defaultValue={p.description} />
+                    <Field label="Fecha" name="date" type="date" defaultValue={fmtDate(p.date)} />
+                    <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={p.amount} />
+                    <SubmitButton small>Guardar</SubmitButton>
+                  </ActionForm>
+                  <ActionForm action={deletePlannedInvoice}>
+                    <input type="hidden" name="plannedInvoiceId" value={p.id} />
+                    <DeleteButton>
+                      <TrashIcon className="h-3.5 w-3.5" /> Eliminar
+                    </DeleteButton>
+                  </ActionForm>
+                </div>
+                <ActionForm
+                  action={promotePlannedInvoice}
+                  className="flex flex-wrap items-end gap-2 border-t border-gray-700 pt-2"
+                >
                   <input type="hidden" name="plannedInvoiceId" value={p.id} />
                   <Field label="URL PDF (opcional)" name="pdfUrl" />
                   <SubmitButton small>Marcar facturada</SubmitButton>
-                </ActionForm>
-                <ActionForm action={deletePlannedInvoice}>
-                  <input type="hidden" name="plannedInvoiceId" value={p.id} />
-                  <DeleteButton>
-                    <TrashIcon className="h-3.5 w-3.5" /> Eliminar
-                  </DeleteButton>
                 </ActionForm>
               </li>
             ) : (
@@ -223,12 +237,15 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           )}
         </ul>
         {canEdit && (
-          <ActionForm action={addPlannedInvoice} className="flex flex-wrap items-end gap-2">
+          <ActionForm
+            action={addPlannedInvoice}
+            className="flex flex-wrap items-end gap-2 border-t border-gray-700 pt-3"
+          >
             <input type="hidden" name="projectId" value={projectId} />
             <Field label="Descripción" name="description" />
             <Field label="Fecha" name="date" type="date" />
             <Field label="Monto" name="amount" type="number" step="0.01" />
-            <SubmitButton>Agregar prevista</SubmitButton>
+            <SubmitButton>Agregar previsión</SubmitButton>
           </ActionForm>
         )}
       </div>
@@ -244,7 +261,10 @@ export function FinancialsSection(props: FinancialsSectionProps) {
           <ul className="flex flex-col gap-2">
             {props.invoices.map((inv) =>
               canEdit ? (
-                <li key={inv.id} className="flex flex-wrap items-end gap-2">
+                <li
+                  key={inv.id}
+                  className="flex flex-wrap items-end justify-between gap-2 rounded-md border border-gray-700 bg-gray-900/40 p-3"
+                >
                   <ActionForm action={updateInvoice} className="flex flex-wrap items-end gap-2">
                     <input type="hidden" name="invoiceId" value={inv.id} />
                     <Field label="Fecha" name="date" type="date" defaultValue={fmtDate(inv.date)} />

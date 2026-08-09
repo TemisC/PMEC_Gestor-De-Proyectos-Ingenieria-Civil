@@ -142,7 +142,7 @@ export default async function ProjectDetailPage({
   const auditEntries = canSeeFinancials ? await getProjectAuditLog(id, 30) : [];
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div>
         <Link href="/dashboard" className="text-xs text-sky-400 hover:underline">
           ← Volver
