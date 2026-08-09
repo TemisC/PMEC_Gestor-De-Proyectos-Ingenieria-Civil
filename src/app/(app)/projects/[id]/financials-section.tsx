@@ -151,6 +151,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
                   <input type="hidden" name="additionalId" value={a.id} />
                   <Field label="Descripción" name="description" defaultValue={a.description} />
                   <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={a.amount} />
+                  <Field label="URL" name="url" defaultValue={a.url ?? ""} />
                   <SubmitButton small>Guardar</SubmitButton>
                 </form>
                 <form action={deleteAdditional}>
@@ -175,6 +176,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
             <input type="hidden" name="projectId" value={projectId} />
             <Field label="Descripción" name="description" />
             <Field label="Monto" name="amount" type="number" step="0.01" />
+            <Field label="URL (opcional)" name="url" />
             <SubmitButton>Agregar adicional</SubmitButton>
           </form>
         )}
@@ -196,8 +198,9 @@ export function FinancialsSection(props: FinancialsSectionProps) {
                   <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={p.amount} />
                   <SubmitButton small>Guardar</SubmitButton>
                 </form>
-                <form action={promotePlannedInvoice}>
+                <form action={promotePlannedInvoice} className="flex flex-wrap items-end gap-2">
                   <input type="hidden" name="plannedInvoiceId" value={p.id} />
+                  <Field label="URL PDF (opcional)" name="pdfUrl" />
                   <SubmitButton small>Marcar facturada</SubmitButton>
                 </form>
                 <form action={deletePlannedInvoice}>

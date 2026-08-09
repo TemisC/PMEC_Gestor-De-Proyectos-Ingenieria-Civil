@@ -122,6 +122,14 @@ export function ExternalCollaboratorsSection({
                       className="w-24 rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
                     />
                   </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400">URL acuerdo</label>
+                    <input
+                      name="agreementUrl"
+                      defaultValue={c.agreementUrl ?? ""}
+                      className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+                    />
+                  </div>
                   <button
                     type="submit"
                     className="rounded-md bg-sky-500 px-2 py-1 text-xs font-medium text-white hover:bg-sky-400"
@@ -337,6 +345,14 @@ export function ExternalCollaboratorsSection({
               type="number"
               step="0.01"
               className="w-24 rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-400">URL acuerdo</label>
+            <input
+              name="agreementUrl"
+              placeholder="opcional"
+              className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1 text-xs text-white"
             />
           </div>
           <button
