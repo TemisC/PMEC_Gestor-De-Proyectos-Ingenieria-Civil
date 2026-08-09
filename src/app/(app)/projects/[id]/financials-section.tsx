@@ -27,6 +27,7 @@ export type FinancialsSectionProps = {
     description: string;
     date: Date;
     amount: Money;
+    pdfUrl: string | null;
     invoiced: boolean;
   }[];
   invoices: { id: string; amount: Money; date: Date; pdfUrl: string | null }[];
@@ -204,6 +205,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
                     <Field label="Descripción" name="description" defaultValue={p.description} />
                     <Field label="Fecha" name="date" type="date" defaultValue={fmtDate(p.date)} />
                     <Field label="Monto" name="amount" type="number" step="0.01" defaultValue={p.amount} />
+                    <Field label="URL (opcional)" name="pdfUrl" defaultValue={p.pdfUrl ?? ""} />
                     <SubmitButton small>Guardar</SubmitButton>
                   </ActionForm>
                   <ActionForm action={deletePlannedInvoice}>
@@ -218,7 +220,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
                   className="flex flex-wrap items-end gap-2 border-t border-gray-700 pt-2"
                 >
                   <input type="hidden" name="plannedInvoiceId" value={p.id} />
-                  <Field label="URL PDF (opcional)" name="pdfUrl" />
+                  <Field label="URL PDF (opcional)" name="pdfUrl" defaultValue={p.pdfUrl ?? ""} />
                   <SubmitButton small>Marcar facturada</SubmitButton>
                 </ActionForm>
               </li>
@@ -245,6 +247,7 @@ export function FinancialsSection(props: FinancialsSectionProps) {
             <Field label="Descripción" name="description" />
             <Field label="Fecha" name="date" type="date" />
             <Field label="Monto" name="amount" type="number" step="0.01" />
+            <Field label="URL (opcional)" name="pdfUrl" />
             <SubmitButton>Agregar previsión</SubmitButton>
           </ActionForm>
         )}

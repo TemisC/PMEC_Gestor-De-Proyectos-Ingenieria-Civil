@@ -188,6 +188,7 @@ export async function addPlannedInvoice(prevState: ActionResult, formData: FormD
     date: formData.get("date"),
     amount: formData.get("amount"),
     source: formData.get("source"),
+    pdfUrl: formData.get("pdfUrl"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
@@ -200,6 +201,7 @@ export async function addPlannedInvoice(prevState: ActionResult, formData: FormD
       date: parsed.data.date,
       amount: parsed.data.amount,
       source: parsed.data.source,
+      pdfUrl: parsed.data.pdfUrl || null,
     },
   });
 
@@ -225,6 +227,7 @@ export async function updatePlannedInvoice(prevState: ActionResult, formData: Fo
     description: formData.get("description"),
     date: formData.get("date"),
     amount: formData.get("amount"),
+    pdfUrl: formData.get("pdfUrl"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
 
@@ -241,6 +244,7 @@ export async function updatePlannedInvoice(prevState: ActionResult, formData: Fo
       description: parsed.data.description,
       date: parsed.data.date,
       amount: parsed.data.amount,
+      pdfUrl: parsed.data.pdfUrl || null,
     },
   });
 

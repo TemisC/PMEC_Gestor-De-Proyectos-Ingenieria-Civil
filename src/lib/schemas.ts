@@ -124,6 +124,10 @@ export const addPlannedInvoiceSchema = z.object({
     (v) => (v === null ? undefined : v),
     invoiceSourceSchema.default("AGREEMENT"),
   ),
+  // Referencia opcional (plantilla/borrador) cargada desde que se crea la
+  // previsión — se precarga como valor inicial al promoverla a factura
+  // real (promotePlannedInvoiceSchema), editable en ese momento.
+  pdfUrl: optionalUrl,
 });
 
 export const promotePlannedInvoiceSchema = z.object({
@@ -139,6 +143,7 @@ export const updatePlannedInvoiceSchema = z.object({
   description: z.string().trim().min(1, "La descripción es obligatoria").max(200),
   date: z.coerce.date(),
   amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
+  pdfUrl: optionalUrl,
 });
 
 export const deletePlannedInvoiceSchema = z.object({

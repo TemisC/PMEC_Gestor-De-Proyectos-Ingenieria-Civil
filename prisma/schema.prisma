@@ -193,6 +193,12 @@ model PlannedInvoice {
   description String
   date        DateTime
   amount      Float
+  // Referencia opcional (plantilla/borrador) cargada desde que se crea la
+  // previsión, antes de que exista una factura real — al promoverla
+  // (promotePlannedInvoice) se precarga como valor inicial del pdfUrl de
+  // la Invoice real, pero se puede cambiar en ese momento si el documento
+  // final es distinto.
+  pdfUrl      String?
   source      InvoiceSource @default(AGREEMENT)
   // Se marca true cuando se "promueve" a factura real emitida (Invoice).
   invoiced    Boolean       @default(false)
