@@ -38,6 +38,7 @@ import { FinancialsSection } from "./financials-section";
 import { ExternalCollaboratorsSection } from "./external-collaborators-section";
 import { CashflowSection } from "./cashflow-section";
 import { AuditSection } from "../audit-section";
+import { getProjectAuditLog } from "@/lib/audit";
 import { LogTimeEntryForm } from "./log-time-entry-form";
 
 export default async function ProjectDetailPage({
@@ -137,13 +138,7 @@ export default async function ProjectDetailPage({
     externalPayments: project.externalCollaborators.flatMap((c) => c.payments),
   });
 
-  const auditEntries = canSeeFinancials
-    ? await prisma.auditLog.findMany({
-        where: { projectId: id },
-        orderBy: { createdAt: "desc" },
-        take: 30,
-      })
-    : [];
+  const auditEntries = canSeeFinancials ? await getProjectAuditLog(id, 30) : [];
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">

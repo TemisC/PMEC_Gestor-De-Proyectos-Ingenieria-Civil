@@ -29,6 +29,49 @@ export async function logAction(params: AuditParams) {
   }
 }
 
+type AuditLogEntry = Awaited<ReturnType<typeof prisma.auditLog.findMany>>[number];
+
+// Lectura best-effort, simétrica a logAction: el historial de cambios es
+// información auxiliar, nunca debe tumbar la página del proyecto (donde
+// vive junto a adicionales/previsiones/colaboradores) si la tabla/consulta
+// falla — mismo tipo de falla que ya se vio en producción (bug reportado
+// 2026-08-07: error de servidor al abrir la edición de un proyecto).
+export async function getProjectAuditLog(
+  projectId: string,
+  take = 30,
+): Promise<AuditLogEntry[]> {
+  try {
+    return await prisma.auditLog.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      take,
+    });
+  } catch (err) {
+    console.error("[audit] Failed to read project audit log:", projectId, err);
+    return [];
+  }
+}
+
+export async function getAuditLogPage(params: {
+  skip: number;
+  take: number;
+}): Promise<{ entries: AuditLogEntry[]; total: number }> {
+  try {
+    const [entries, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        orderBy: { createdAt: "desc" },
+        take: params.take,
+        skip: params.skip,
+      }),
+      prisma.auditLog.count(),
+    ]);
+    return { entries, total };
+  } catch (err) {
+    console.error("[audit] Failed to read audit log page:", err);
+    return { entries: [], total: 0 };
+  }
+}
+
 // ── Labels para la UI ─────────────────────────────────────────────────────
 
 export const ACTION_LABELS: Record<string, string> = {

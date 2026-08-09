@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // SPA de referencia (project-management-dashboard) vive acá para
+    // consulta, pero no es parte del build de PMEC ni tiene sus propias
+    // dependencias instaladas.
+    "SPAVicent/**",
   ]),
 ]);
 

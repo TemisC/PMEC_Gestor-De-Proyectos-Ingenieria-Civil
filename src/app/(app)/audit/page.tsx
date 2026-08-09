@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { canManageUsers } from "@/lib/authorization";
 import { Card } from "@/components/ui/card";
 import { Pagination } from "@/components/pagination";
-import { ACTION_LABELS, relativeTime } from "@/lib/audit";
+import { ACTION_LABELS, getAuditLogPage, relativeTime } from "@/lib/audit";
 
 // Solo Gerencia puede ver el log global (misma guarda que /users).
 const PAGE_SIZE = 50;
@@ -24,14 +23,7 @@ export default async function AuditPage({
   const page = Math.max(1, parseInt(pageStr ?? "1", 10) || 1);
   const skip = (page - 1) * PAGE_SIZE;
 
-  const [entries, total] = await Promise.all([
-    prisma.auditLog.findMany({
-      orderBy: { createdAt: "desc" },
-      take: PAGE_SIZE,
-      skip,
-    }),
-    prisma.auditLog.count(),
-  ]);
+  const { entries, total } = await getAuditLogPage({ skip, take: PAGE_SIZE });
 
   return (
     <div className="flex flex-col gap-6">
