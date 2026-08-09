@@ -115,7 +115,15 @@ export const addPlannedInvoiceSchema = z.object({
   description: z.string().trim().min(1, "La descripción es obligatoria").max(200),
   date: z.coerce.date(),
   amount: z.coerce.number().positive("El monto tiene que ser mayor a 0"),
-  source: invoiceSourceSchema.default("AGREEMENT"),
+  // El formulario "Agregar prevista" no expone un campo `source` (no hay
+  // forma de elegir Acuerdo/Adicional al cargar) — igual que optionalString,
+  // `.default()` de Zod solo sustituye `undefined`, no `null`, así que el
+  // campo ausente del form crasheaba la Server Action (mismo bug, ver
+  // helper de arriba).
+  source: z.preprocess(
+    (v) => (v === null ? undefined : v),
+    invoiceSourceSchema.default("AGREEMENT"),
+  ),
 });
 
 export const promotePlannedInvoiceSchema = z.object({
