@@ -34,7 +34,7 @@ export async function GET(
       members: { include: { user: true } },
       timeEntries: true,
       externalCollaborators: {
-        include: { additionals: true, payments: { orderBy: { date: "asc" } } },
+        include: { collaborator: true, additionals: true, payments: { orderBy: { date: "asc" } } },
       },
     },
   });
@@ -94,9 +94,9 @@ export async function GET(
 
   // ── Construir team: externos (ExternalCollaborator) ──────────────────
   const externalTeam = project.externalCollaborators.map((c) => ({
-    name: c.name,
-    company: c.company ?? undefined,
-    contact: c.contact ?? c.name,
+    name: c.collaborator.name,
+    company: c.collaborator.company ?? undefined,
+    contact: c.collaborator.contact ?? c.collaborator.name,
     role: "Colaborador externo",
     type: "Externo" as const,
     collaboratorInfo: {

@@ -6,7 +6,6 @@ import { prisma } from "@/lib/prisma";
 import { canManageProject, toAuthProject } from "@/lib/authorization";
 import {
   addExternalAdditionalSchema,
-  addExternalCollaboratorSchema,
   addExternalPaymentSchema,
   deleteExternalAdditionalSchema,
   deleteExternalCollaboratorSchema,
@@ -36,9 +35,13 @@ async function assertCanManage(projectId: string) {
   return { project, userId, userName: session.user.name ?? session.user.email ?? null };
 }
 
+// "collaborator" acá es el ExternalCollaborator (el acuerdo por proyecto);
+// su nombre para mostrar en la UI/auditoría vive en collaborator.collaborator
+// (el perfil global, ver src/lib/schemas.ts).
 async function assertCanManageViaCollaborator(externalCollaboratorId: string) {
   const collaborator = await prisma.externalCollaborator.findUnique({
     where: { id: externalCollaboratorId },
+    include: { collaborator: true },
   });
   if (!collaborator) throw new Error("No encontrado");
   const caller = await assertCanManage(collaborator.projectId);
@@ -49,49 +52,15 @@ function money(n: number) {
   return `$${Math.round(n).toLocaleString("es-AR")}`;
 }
 
-export async function addExternalCollaborator(
-  prevState: ActionResult,
-  formData: FormData,
-): Promise<ActionResult> {
-  const parsed = addExternalCollaboratorSchema.safeParse({
-    projectId: formData.get("projectId"),
-    name: formData.get("name"),
-    company: formData.get("company"),
-    contact: formData.get("contact"),
-    agreementAmount: formData.get("agreementAmount"),
-    agreementUrl: formData.get("agreementUrl"),
-  });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+// Alta de colaborador externo: se hace desde el picker unificado
+// (addTeamMember, en projects/actions.ts) — ahí se resuelve/crea el
+// Collaborator global y se crea este acuerdo por proyecto.
 
-  const { userId, userName } = await assertCanManage(parsed.data.projectId);
-
-  const rec = await prisma.externalCollaborator.create({
-    data: {
-      projectId: parsed.data.projectId,
-      name: parsed.data.name,
-      company: parsed.data.company || null,
-      contact: parsed.data.contact || null,
-      agreementAmount:
-        parsed.data.agreementAmount === "" || parsed.data.agreementAmount === undefined
-          ? null
-          : parsed.data.agreementAmount,
-      agreementUrl: parsed.data.agreementUrl || null,
-    },
-  });
-
-  await logAction({
-    userId, userName,
-    action: "external_collaborator.create",
-    entityType: "ExternalCollaborator",
-    entityId: rec.id,
-    entityName: parsed.data.name,
-    projectId: parsed.data.projectId,
-  });
-
-  revalidatePath(`/projects/${parsed.data.projectId}`);
-  return { ok: true };
-}
-
+// Actualiza el perfil global (Collaborator: nombre/empresa/contacto) Y el
+// acuerdo de este proyecto (ExternalCollaborator: monto/URL) — el
+// perfil es compartido (feedback del gestor 2026-08-13: "fusionar con
+// equipo global"), así que corregirlo acá se refleja en todos los
+// proyectos donde participe este mismo colaborador.
 export async function updateExternalCollaborator(
   prevState: ActionResult,
   formData: FormData,
@@ -110,19 +79,26 @@ export async function updateExternalCollaborator(
     parsed.data.externalCollaboratorId,
   );
 
-  await prisma.externalCollaborator.update({
-    where: { id: parsed.data.externalCollaboratorId },
-    data: {
-      name: parsed.data.name,
-      company: parsed.data.company || null,
-      contact: parsed.data.contact || null,
-      agreementAmount:
-        parsed.data.agreementAmount === "" || parsed.data.agreementAmount === undefined
-          ? null
-          : parsed.data.agreementAmount,
-      agreementUrl: parsed.data.agreementUrl || null,
-    },
-  });
+  await prisma.$transaction([
+    prisma.collaborator.update({
+      where: { id: collaborator.collaboratorId },
+      data: {
+        name: parsed.data.name,
+        company: parsed.data.company || null,
+        contact: parsed.data.contact || null,
+      },
+    }),
+    prisma.externalCollaborator.update({
+      where: { id: parsed.data.externalCollaboratorId },
+      data: {
+        agreementAmount:
+          parsed.data.agreementAmount === "" || parsed.data.agreementAmount === undefined
+            ? null
+            : parsed.data.agreementAmount,
+        agreementUrl: parsed.data.agreementUrl || null,
+      },
+    }),
+  ]);
 
   await logAction({
     userId, userName,
@@ -170,7 +146,7 @@ export async function deleteExternalCollaborator(
     action: "external_collaborator.delete",
     entityType: "ExternalCollaborator",
     entityId: parsed.data.externalCollaboratorId,
-    entityName: collaborator.name,
+    entityName: collaborator.collaborator.name,
     projectId: collaborator.projectId,
   });
 
@@ -206,7 +182,7 @@ export async function addExternalAdditional(
     action: "ext_additional.create",
     entityType: "ExternalCollaboratorAdditional",
     entityId: rec.id,
-    entityName: `${collaborator.name} — ${parsed.data.description} (${money(parsed.data.amount)})`,
+    entityName: `${collaborator.collaborator.name} — ${parsed.data.description} (${money(parsed.data.amount)})`,
     projectId: collaborator.projectId,
   });
 
@@ -241,7 +217,7 @@ export async function updateExternalAdditional(
     action: "ext_additional.update",
     entityType: "ExternalCollaboratorAdditional",
     entityId: parsed.data.externalAdditionalId,
-    entityName: `${collaborator.name} — ${parsed.data.description} (${money(parsed.data.amount)})`,
+    entityName: `${collaborator.collaborator.name} — ${parsed.data.description} (${money(parsed.data.amount)})`,
     projectId: collaborator.projectId,
   });
 
@@ -273,7 +249,7 @@ export async function deleteExternalAdditional(
     action: "ext_additional.delete",
     entityType: "ExternalCollaboratorAdditional",
     entityId: parsed.data.externalAdditionalId,
-    entityName: `${collaborator.name} — ${additional.description} (${money(additional.amount)})`,
+    entityName: `${collaborator.collaborator.name} — ${additional.description} (${money(additional.amount)})`,
     projectId: collaborator.projectId,
   });
 
@@ -311,7 +287,7 @@ export async function addExternalPayment(
     action: "ext_payment.create",
     entityType: "ExternalCollaboratorPayment",
     entityId: rec.id,
-    entityName: `${collaborator.name} — ${money(parsed.data.amount)}`,
+    entityName: `${collaborator.collaborator.name} — ${money(parsed.data.amount)}`,
     projectId: collaborator.projectId,
   });
 
@@ -351,7 +327,7 @@ export async function updateExternalPayment(
     action: "ext_payment.update",
     entityType: "ExternalCollaboratorPayment",
     entityId: parsed.data.externalPaymentId,
-    entityName: `${collaborator.name} — ${money(parsed.data.amount)}`,
+    entityName: `${collaborator.collaborator.name} — ${money(parsed.data.amount)}`,
     projectId: collaborator.projectId,
   });
 
@@ -383,7 +359,7 @@ export async function deleteExternalPayment(
     action: "ext_payment.delete",
     entityType: "ExternalCollaboratorPayment",
     entityId: parsed.data.externalPaymentId,
-    entityName: `${collaborator.name} — ${money(payment.amount)}`,
+    entityName: `${collaborator.collaborator.name} — ${money(payment.amount)}`,
     projectId: collaborator.projectId,
   });
 

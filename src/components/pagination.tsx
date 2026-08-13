@@ -5,11 +5,14 @@ export function Pagination({
   total,
   pageSize,
   q,
+  extraParams,
 }: {
   page: number;
   total: number;
   pageSize: number;
   q?: string;
+  // Otros filtros de la URL a preservar al cambiar de página (ej. "mine=1").
+  extraParams?: Record<string, string | undefined>;
 }) {
   const totalPages = Math.ceil(total / pageSize);
   if (totalPages <= 1) return null;
@@ -17,6 +20,9 @@ export function Pagination({
   const href = (p: number) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
+    for (const [key, value] of Object.entries(extraParams ?? {})) {
+      if (value) params.set(key, value);
+    }
     params.set("page", String(p));
     return `?${params.toString()}`;
   };

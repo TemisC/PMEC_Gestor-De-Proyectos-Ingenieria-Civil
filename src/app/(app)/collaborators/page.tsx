@@ -20,8 +20,8 @@ export default async function CollaboratorsPage() {
     include: {
       client: true,
       externalCollaborators: {
-        include: { payments: true, additionals: true },
-        orderBy: { name: "asc" },
+        include: { collaborator: true, payments: true, additionals: true },
+        orderBy: { collaborator: { name: "asc" } },
       },
     },
     orderBy: { name: "asc" },
@@ -34,7 +34,17 @@ export default async function CollaboratorsPage() {
       const paid = ec.payments.reduce((s, pay) => s + pay.amount, 0);
       const totalAgreed = agreed + extras;
       const pending = Math.max(0, totalAgreed - paid);
-      return { id: ec.id, name: ec.name, company: ec.company, project: p, agreed, extras, totalAgreed, paid, pending };
+      return {
+        id: ec.id,
+        name: ec.collaborator.name,
+        company: ec.collaborator.company,
+        project: p,
+        agreed,
+        extras,
+        totalAgreed,
+        paid,
+        pending,
+      };
     }),
   );
 

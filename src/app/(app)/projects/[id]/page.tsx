@@ -26,7 +26,6 @@ import {
   isMarginAtRisk,
 } from "@/lib/financials";
 import {
-  addProjectMember,
   deleteTimeEntry,
   removeProjectMember,
   setProjectStatus,
@@ -39,6 +38,7 @@ import { TrashIcon } from "@/components/ui/icons";
 import { FinancialsSection } from "./financials-section";
 import { ExternalCollaboratorsSection } from "./external-collaborators-section";
 import { InternalCostSection } from "./internal-cost-section";
+import { AddTeamMemberForm } from "./add-team-member-form";
 import { CashflowSection } from "./cashflow-section";
 import { AuditSection } from "../audit-section";
 import { getProjectAuditLog } from "@/lib/audit";
@@ -69,7 +69,11 @@ export default async function ProjectDetailPage({
       plannedInvoices: { orderBy: { date: "asc" } },
       invoices: { orderBy: { date: "desc" } },
       externalCollaborators: {
-        include: { additionals: true, payments: { orderBy: { date: "desc" } } },
+        include: {
+          collaborator: true,
+          additionals: true,
+          payments: { orderBy: { date: "desc" } },
+        },
       },
     },
   });
@@ -107,6 +111,19 @@ export default async function ProjectDetailPage({
   // uno existente del catálogo global o escribir el nombre de uno nuevo.
   const clients = canManage
     ? await prisma.client.findMany({ orderBy: { name: "asc" } })
+    : [];
+
+  // Catálogo global de colaboradores externos (feedback del gestor,
+  // 2026-08-13: "fusionar con equipo global") — se excluyen los que ya
+  // tienen un acuerdo en este proyecto, mismo criterio que
+  // availableCollaborators para los internos.
+  const availableExternalCollaborators = canManage
+    ? await prisma.collaborator.findMany({
+        where: {
+          id: { notIn: project.externalCollaborators.map((ec) => ec.collaboratorId) },
+        },
+        orderBy: { name: "asc" },
+      })
     : [];
 
   // Candidatos para matchear nombres del CSV de Odoo (Coste Interno) — no
@@ -305,9 +322,17 @@ export default async function ProjectDetailPage({
 
       {canSeeFinancials && (
         <ExternalCollaboratorsSection
-          projectId={project.id}
           canEdit={canManage}
-          collaborators={project.externalCollaborators}
+          collaborators={project.externalCollaborators.map((ec) => ({
+            id: ec.id,
+            name: ec.collaborator.name,
+            company: ec.collaborator.company,
+            contact: ec.collaborator.contact,
+            agreementAmount: ec.agreementAmount,
+            agreementUrl: ec.agreementUrl,
+            additionals: ec.additionals,
+            payments: ec.payments,
+          }))}
         />
       )}
 
@@ -327,7 +352,7 @@ export default async function ProjectDetailPage({
       {canManage && (
         <Card className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-            Colaboradores asignados
+            Equipo del proyecto
           </h2>
           <ul className="flex flex-col gap-2">
             {project.members.length === 0 && (
@@ -340,7 +365,12 @@ export default async function ProjectDetailPage({
                 key={member.id}
                 className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-3 py-2 text-sm text-white"
               >
-                <span>{member.user.name ?? member.user.email}</span>
+                <span>
+                  <span className="mr-2 rounded bg-sky-900/50 px-1.5 py-0.5 text-[10px] text-sky-400">
+                    Interno
+                  </span>
+                  {member.user.name ?? member.user.email}
+                </span>
                 <form action={removeProjectMember}>
                   <input type="hidden" name="projectId" value={project.id} />
                   <input type="hidden" name="memberUserId" value={member.userId} />
@@ -353,35 +383,33 @@ export default async function ProjectDetailPage({
                 </form>
               </li>
             ))}
+            {project.externalCollaborators.map((ec) => (
+              <li
+                key={ec.id}
+                className="flex items-center justify-between rounded-md border border-gray-700 bg-gray-900/40 px-3 py-2 text-sm text-white"
+              >
+                <span>
+                  <span className="mr-2 rounded bg-violet-900/50 px-1.5 py-0.5 text-[10px] text-violet-400">
+                    Externo
+                  </span>
+                  {ec.collaborator.name}
+                </span>
+                <span className="text-xs text-gray-500">ver detalle abajo ↓</span>
+              </li>
+            ))}
           </ul>
 
-          {availableCollaborators.length > 0 && (
-            <form action={addProjectMember} className="flex items-end gap-2">
-              <input type="hidden" name="projectId" value={project.id} />
-              <div className="flex flex-1 flex-col gap-1">
-                <label htmlFor="memberUserId" className="text-xs text-gray-400">
-                  Agregar colaborador
-                </label>
-                <select
-                  id="memberUserId"
-                  name="memberUserId"
-                  className="rounded-md border border-gray-700 bg-gray-900/60 px-2 py-1.5 text-sm text-white"
-                >
-                  {availableCollaborators.map((collaborator) => (
-                    <option key={collaborator.id} value={collaborator.id}>
-                      {collaborator.name ?? collaborator.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="submit"
-                className="rounded-md bg-sky-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-400"
-              >
-                Agregar
-              </button>
-            </form>
-          )}
+          <AddTeamMemberForm
+            projectId={project.id}
+            availableUsers={availableCollaborators.map((c) => ({
+              id: c.id,
+              name: c.name ?? c.email,
+            }))}
+            availableCollaborators={availableExternalCollaborators.map((c) => ({
+              id: c.id,
+              name: c.name,
+            }))}
+          />
         </Card>
       )}
 

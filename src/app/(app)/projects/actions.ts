@@ -14,6 +14,7 @@ import {
   toAuthProject,
 } from "@/lib/authorization";
 import {
+  addExternalTeamMemberSchema,
   addProjectMemberSchema,
   createProjectSchema,
   deleteTimeEntrySchema,
@@ -166,52 +167,120 @@ export async function setProjectStatus(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-export async function addProjectMember(formData: FormData) {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const parsed = addProjectMemberSchema.safeParse({
-    projectId: formData.get("projectId"),
-    userId: formData.get("memberUserId"),
-  });
-  if (!userId || !parsed.success) {
-    throw new Error("Datos inválidos");
+// Picker unificado (feedback del gestor, 2026-08-13): un solo punto de
+// alta para el equipo del proyecto, interno o externo, diferenciado por
+// el valor de "selection" ("internal:<userId>" | "external:<collaboratorId>"
+// | "new-external"). Reemplaza los dos flujos separados que había antes
+// (addProjectMember suelto + "Agregar colaborador externo" en la sección
+// de Financiero).
+export async function addTeamMember(prevState: ActionResult, formData: FormData): Promise<ActionResult> {
+  const projectId = formData.get("projectId");
+  const selection = formData.get("selection");
+  if (typeof projectId !== "string" || !projectId || typeof selection !== "string" || !selection) {
+    return { error: "Elegí a quién agregar" };
   }
 
+  const session = await auth();
+  const authUserId = session?.user?.id;
+  if (!authUserId) throw new Error("No autorizado");
+
   const project = await prisma.project.findUnique({
-    where: { id: parsed.data.projectId },
+    where: { id: projectId },
     include: { members: true },
   });
-  if (!project || !canManageProject({ id: userId, role: session.user.role }, toAuthProject(project))) {
+  if (!project || !canManageProject({ id: authUserId, role: session.user.role }, toAuthProject(project))) {
     // No revelar si el proyecto existe o no a quien no tiene permiso.
     throw new Error("No autorizado");
   }
+  const userName = session.user.name ?? session.user.email;
 
-  const memberToAdd = await prisma.user.findUnique({
-    where: { id: parsed.data.userId },
-  });
-  if (!memberToAdd || memberToAdd.role !== Role.COLABORADOR) {
-    throw new Error("El usuario elegido no es un Colaborador válido");
+  if (selection.startsWith("internal:")) {
+    const parsed = addProjectMemberSchema.safeParse({
+      projectId,
+      userId: selection.slice("internal:".length),
+    });
+    if (!parsed.success) return { error: "Datos inválidos" };
+
+    const memberToAdd = await prisma.user.findUnique({ where: { id: parsed.data.userId } });
+    if (!memberToAdd || memberToAdd.role !== Role.COLABORADOR) {
+      return { error: "El usuario elegido no es un Colaborador válido" };
+    }
+
+    await prisma.projectMember.upsert({
+      where: { userId_projectId: { userId: parsed.data.userId, projectId } },
+      update: {},
+      create: { userId: parsed.data.userId, projectId },
+    });
+
+    await logAction({
+      userId: authUserId, userName,
+      action: "member.add",
+      entityType: "ProjectMember",
+      entityId: `${projectId}:${parsed.data.userId}`,
+      entityName: memberToAdd.name ?? memberToAdd.email,
+      projectId,
+    });
+
+    revalidatePath(`/projects/${projectId}`);
+    return { ok: true };
   }
 
-  await prisma.projectMember.upsert({
-    where: {
-      userId_projectId: { userId: parsed.data.userId, projectId: parsed.data.projectId },
+  // Externo: "external:<collaboratorId>" (ya existe en el catálogo) o
+  // "new-external" (se crea/reutiliza por nombre, igual que Client).
+  const parsed = addExternalTeamMemberSchema.safeParse({
+    projectId,
+    collaboratorId: selection.startsWith("external:") ? selection.slice("external:".length) : "",
+    newCollaboratorName: formData.get("newCollaboratorName"),
+    newCollaboratorCompany: formData.get("newCollaboratorCompany"),
+    newCollaboratorContact: formData.get("newCollaboratorContact"),
+    agreementAmount: formData.get("agreementAmount"),
+    agreementUrl: formData.get("agreementUrl"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+
+  let collaboratorId = parsed.data.collaboratorId || null;
+  if (!collaboratorId && parsed.data.newCollaboratorName) {
+    const collaborator = await prisma.collaborator.upsert({
+      where: { name: parsed.data.newCollaboratorName },
+      update: {},
+      create: {
+        name: parsed.data.newCollaboratorName,
+        company: parsed.data.newCollaboratorCompany || null,
+        contact: parsed.data.newCollaboratorContact || null,
+      },
+    });
+    collaboratorId = collaborator.id;
+  }
+  if (!collaboratorId) {
+    return { error: "Elegí un colaborador externo existente o escribí uno nuevo" };
+  }
+
+  const rec = await prisma.externalCollaborator.upsert({
+    where: { collaboratorId_projectId: { collaboratorId, projectId } },
+    update: {}, // ya estaba agregado a este proyecto, no pisar el acuerdo existente
+    create: {
+      collaboratorId,
+      projectId,
+      agreementAmount:
+        parsed.data.agreementAmount === "" || parsed.data.agreementAmount === undefined
+          ? null
+          : parsed.data.agreementAmount,
+      agreementUrl: parsed.data.agreementUrl || null,
     },
-    update: {},
-    create: { userId: parsed.data.userId, projectId: parsed.data.projectId },
+    include: { collaborator: true },
   });
 
   await logAction({
-    userId,
-    userName: session.user.name ?? session.user.email,
-    action: "member.add",
-    entityType: "ProjectMember",
-    entityId: `${parsed.data.projectId}:${parsed.data.userId}`,
-    entityName: memberToAdd.name ?? memberToAdd.email,
-    projectId: parsed.data.projectId,
+    userId: authUserId, userName,
+    action: "external_collaborator.create",
+    entityType: "ExternalCollaborator",
+    entityId: rec.id,
+    entityName: rec.collaborator.name,
+    projectId,
   });
 
-  revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
 }
 
 export async function removeProjectMember(formData: FormData) {

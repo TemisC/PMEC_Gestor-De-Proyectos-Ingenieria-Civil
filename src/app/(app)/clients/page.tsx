@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { Role } from "@/generated/prisma/enums";
 import { canAccessClients } from "@/lib/authorization";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/search-input";
@@ -12,22 +13,37 @@ const PAGE_SIZE = 20;
 
 // Catálogo global de clientes (sección 2 del plan) — no scoped a un
 // Gestor. Cualquier proyecto de cualquier Gestor puede estar linkeado
-// a estos mismos clientes.
+// a estos mismos clientes. El filtro "solo mis clientes" (feedback del
+// gestor, 2026-08-13) es opcional, no cambia el catálogo compartido.
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; mine?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id || !canAccessClients({ id: session.user.id, role: session.user.role })) {
     redirect("/dashboard");
   }
 
-  const { q, page: pageStr } = await searchParams;
+  const { q, page: pageStr, mine } = await searchParams;
+  // "Mis clientes" solo tiene sentido para un Gestor (dueño de proyectos)
+  // — Gerencia no gestiona proyectos propios, siempre ve el catálogo entero.
+  const showMine = mine === "1" && session.user.role === Role.GESTOR;
   const page = Math.max(1, parseInt(pageStr ?? "1", 10) || 1);
   const skip = (page - 1) * PAGE_SIZE;
 
-  const where = q ? { name: { contains: q, mode: "insensitive" as const } } : undefined;
+  const mineHref = (currentlyMine: boolean) => {
+    const params = new URLSearchParams();
+    if (!currentlyMine) params.set("mine", "1");
+    if (q) params.set("q", q);
+    const qs = params.toString();
+    return `/clients${qs ? `?${qs}` : ""}`;
+  };
+
+  const where = {
+    ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(showMine ? { projects: { some: { managerId: session.user.id } } } : {}),
+  };
 
   const [clients, total] = await Promise.all([
     prisma.client.findMany({
@@ -101,16 +117,27 @@ export default async function ClientsPage({
       </Card>
 
       <Card>
-        <div className="mb-3 flex items-center justify-between gap-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-            Todos los clientes ({total})
+            {showMine ? "Mis clientes" : "Todos los clientes"} ({total})
           </h2>
-          <SearchInput placeholder="Buscar por nombre…" />
+          <div className="flex items-center gap-3">
+            <SearchInput placeholder="Buscar por nombre…" />
+            {session.user.role === Role.GESTOR && (
+              <Link href={mineHref(showMine)} className="text-xs text-sky-400 hover:underline">
+                {showMine ? "Ver todos" : "Ver solo mis clientes"}
+              </Link>
+            )}
+          </div>
         </div>
 
         {clients.length === 0 ? (
           <p className="text-sm text-gray-500">
-            {q ? `Sin resultados para "${q}".` : "Todavía no hay clientes cargados."}
+            {q
+              ? `Sin resultados para "${q}".`
+              : showMine
+                ? "Ninguno de tus proyectos tiene un cliente asignado todavía."
+                : "Todavía no hay clientes cargados."}
           </p>
         ) : (
           <>
@@ -130,7 +157,13 @@ export default async function ClientsPage({
                 </li>
               ))}
             </ul>
-            <Pagination page={page} total={total} pageSize={PAGE_SIZE} q={q} />
+            <Pagination
+              page={page}
+              total={total}
+              pageSize={PAGE_SIZE}
+              q={q}
+              extraParams={{ mine: showMine ? "1" : undefined }}
+            />
           </>
         )}
       </Card>

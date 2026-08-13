@@ -139,10 +139,19 @@ async function main() {
     create: { id: "seed-planned-invoice-2", ...plannedInvoice2 },
   });
 
-  const externalCollaborator1 = {
+  const collaboratorProfile1 = {
     name: "Topógrafo Externo SRL",
     company: "Topografía Beta",
     contact: "contacto@topobeta.example",
+  };
+  const collaborator1 = await prisma.collaborator.upsert({
+    where: { name: collaboratorProfile1.name },
+    update: collaboratorProfile1,
+    create: collaboratorProfile1,
+  });
+
+  const externalCollaborator1 = {
+    collaboratorId: collaborator1.id,
     projectId: project1.id,
     agreementAmount: 3000,
   };

@@ -213,11 +213,16 @@ export const importTimeEntriesSchema = z.object({
 
 // --- Colaboradores externos (subcontratistas — se les paga, no cargan horas) ---
 
-export const addExternalCollaboratorSchema = z.object({
+// Colaborador externo global (catálogo compartido, feedback del gestor
+// 2026-08-13: "fusionar con equipo global") — igual patrón que Cliente:
+// elegir uno existente del desplegable, o escribir uno nuevo (tiene
+// prioridad, se crea/reutiliza el Collaborator global por nombre).
+export const addExternalTeamMemberSchema = z.object({
   projectId: z.string().min(1),
-  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
-  company: optionalString(200),
-  contact: optionalString(200),
+  collaboratorId: optionalString(),
+  newCollaboratorName: optionalString(200),
+  newCollaboratorCompany: optionalString(200),
+  newCollaboratorContact: optionalString(200),
   agreementAmount: z.coerce.number().nonnegative().optional().or(z.literal("")),
   agreementUrl: optionalUrl,
 });

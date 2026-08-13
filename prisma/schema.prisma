@@ -243,15 +243,32 @@ model Invoice {
   createdAt DateTime @default(now())
 }
 
-// Colaborador externo (subcontratista) — a diferencia de un Colaborador
-// interno (User con rol COLABORADOR, que carga horas), un externo no es
-// un usuario del sistema: se le paga por acuerdo/adicionales, no por
-// hora. Mismo concepto que CollaboratorInfo del SPA original.
-model ExternalCollaborator {
+// Colaborador externo (subcontratista) — perfil GLOBAL reusable en todos
+// los proyectos (feedback del gestor, 2026-08-13: "fusionar con equipo
+// global"), mismo patrón que Client: catálogo compartido de Deltana, un
+// mismo Collaborator se linkea a varios proyectos sin duplicar datos.
+model Collaborator {
   id      String  @id @default(cuid())
-  name    String
+  name    String  @unique
   company String?
   contact String?
+
+  agreements ExternalCollaborator[]
+
+  createdAt DateTime @default(now())
+}
+
+// El acuerdo de un Collaborator en UN proyecto puntual — a diferencia de
+// un Colaborador interno (User con rol COLABORADOR, que carga horas), un
+// externo no es un usuario del sistema: se le paga por acuerdo/
+// adicionales, no por hora. El perfil (nombre/empresa/contacto) vive en
+// Collaborator; acá solo lo específico de este proyecto (monto acordado,
+// adicionales, pagos).
+model ExternalCollaborator {
+  id String @id @default(cuid())
+
+  collaboratorId String
+  collaborator   Collaborator @relation(fields: [collaboratorId], references: [id])
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
@@ -263,6 +280,8 @@ model ExternalCollaborator {
   payments    ExternalCollaboratorPayment[]
 
   createdAt DateTime @default(now())
+
+  @@unique([collaboratorId, projectId])
 }
 
 model ExternalCollaboratorAdditional {
