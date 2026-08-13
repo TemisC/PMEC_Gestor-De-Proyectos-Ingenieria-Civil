@@ -167,6 +167,50 @@ export const setMemberRateSchema = z.object({
   hourlyRate: z.coerce.number().nonnegative("La tarifa no puede ser negativa"),
 });
 
+// --- Coste interno: horas proyectadas (InternalWorkRange) ---
+
+export const addWorkRangeSchema = z.object({
+  projectMemberId: z.string().min(1),
+  taskName: z.string().trim().min(1, "El nombre de la tarea es obligatorio").max(200),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  dedicationPercentage: z.coerce.number().min(0).max(100, "Tiene que ser entre 0 y 100"),
+  holidaysCount: z.coerce.number().int().nonnegative().optional().or(z.literal("")),
+  manualHours: z.coerce.number().nonnegative().optional().or(z.literal("")),
+});
+
+export const updateWorkRangeSchema = z.object({
+  workRangeId: z.string().min(1),
+  taskName: z.string().trim().min(1, "El nombre de la tarea es obligatorio").max(200),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  dedicationPercentage: z.coerce.number().min(0).max(100, "Tiene que ser entre 0 y 100"),
+  holidaysCount: z.coerce.number().int().nonnegative().optional().or(z.literal("")),
+  manualHours: z.coerce.number().nonnegative().optional().or(z.literal("")),
+});
+
+export const deleteWorkRangeSchema = z.object({
+  workRangeId: z.string().min(1),
+});
+
+// Importación de fichajes desde el CSV de Odoo — no pasa por FormData
+// (es una Server Action "programática", llamada directo desde el cliente
+// con un array ya resuelto de filas), así que no necesita null-safety de
+// optionalString: el array llega tipado desde TypeScript, no desde inputs
+// de un <form>.
+export const importTimeEntriesSchema = z.object({
+  projectId: z.string().min(1),
+  entries: z
+    .array(
+      z.object({
+        userId: z.string().min(1),
+        date: z.coerce.date(),
+        hours: z.coerce.number().positive().max(24, "No puede ser más de 24 horas por fila"),
+      }),
+    )
+    .min(1, "No hay filas para importar"),
+});
+
 // --- Colaboradores externos (subcontratistas — se les paga, no cargan horas) ---
 
 export const addExternalCollaboratorSchema = z.object({

@@ -135,9 +135,32 @@ model ProjectMember {
   // específico; si es null, se usa User.defaultHourlyRate.
   hourlyRate Float?
 
+  workRanges InternalWorkRange[]
+
   createdAt DateTime @default(now())
 
   @@unique([userId, projectId])
+}
+
+// Horas proyectadas (coste interno estimado) — portado del SPA original
+// (InternalWorkRange), sin los "hitos" (partialDeliveries): no los pidió
+// el feedback del gestor, se puede sumar después si hace falta. Las horas
+// nunca se persisten calculadas — se derivan siempre en runtime con
+// calculateRangeHours (src/lib/financials.ts), igual que el SPA.
+model InternalWorkRange {
+  id              String        @id @default(cuid())
+  projectMemberId String
+  projectMember   ProjectMember @relation(fields: [projectMemberId], references: [id])
+
+  taskName             String
+  startDate            DateTime
+  endDate              DateTime
+  dedicationPercentage Float // 0-100
+  holidaysCount        Int   @default(0)
+  // Si está seteado (>0), pisa el cálculo automático de días×8h×%.
+  manualHours          Float?
+
+  createdAt DateTime @default(now())
 }
 
 model TimeEntry {

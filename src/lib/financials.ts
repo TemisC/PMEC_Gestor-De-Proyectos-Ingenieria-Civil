@@ -182,3 +182,57 @@ export function buildCashflowByMonth(params: {
     return { month, label: monthLabel(month), ...d };
   });
 }
+
+// ── Coste interno: horas proyectadas vs reales (feedback del gestor,
+// 2026-08-13) — portado de InternalWorkRange/calculateRangeHours del SPA
+// original, sin los "hitos" (partialDeliveries, no pedidos). Las horas
+// proyectadas nunca se persisten calculadas: siempre se derivan en
+// runtime a partir de los rangos, igual que el SPA. ────────────────────
+
+// Días hábiles (lunes a viernes) entre dos fechas, ambas inclusive.
+// Trabaja en UTC para no depender de la zona horaria del server.
+function getBusinessDays(start: Date, end: Date): number {
+  let count = 0;
+  const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+  while (cur <= last) {
+    const day = cur.getUTCDay(); // 0 = domingo, 6 = sábado
+    if (day !== 0 && day !== 6) count++;
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return count;
+}
+
+export type WorkRangeInput = {
+  startDate: Date;
+  endDate: Date;
+  dedicationPercentage: number;
+  holidaysCount: number;
+  manualHours?: number | null;
+};
+
+// Horas de un rango = días hábiles (menos festivos) × 8h × %dedicación —
+// salvo que manualHours esté seteado (>0), que pisa el cálculo automático.
+export function calculateRangeHours(range: WorkRangeInput): number {
+  if (range.manualHours != null && range.manualHours > 0) return range.manualHours;
+  const businessDays = getBusinessDays(range.startDate, range.endDate);
+  const workDays = Math.max(0, businessDays - (range.holidaysCount || 0));
+  const capacityHours = workDays * 8;
+  return capacityHours * (range.dedicationPercentage / 100);
+}
+
+export function calculateProjectedHours(ranges: WorkRangeInput[]): number {
+  return ranges.reduce((sum, r) => sum + calculateRangeHours(r), 0);
+}
+
+export function calculateRealHours(timeEntries: { hours: number }[]): number {
+  return timeEntries.reduce((sum, e) => sum + e.hours, 0);
+}
+
+// Alerta (semáforo rojo) cuando las horas reales superan las proyectadas
+// — pedido explícito del feedback del gestor. Solo alerta si hay una
+// proyección real cargada (>0): sin proyección no hay línea base contra
+// la cual comparar.
+export function isHoursOverProjected(realHours: number, projectedHours: number): boolean {
+  return projectedHours > 0 && realHours > projectedHours;
+}

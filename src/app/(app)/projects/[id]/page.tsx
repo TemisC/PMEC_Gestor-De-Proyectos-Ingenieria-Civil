@@ -20,6 +20,7 @@ import {
   calculatePendingPlanned,
   calculateProfit,
   calculateProfitPercentage,
+  calculateRealHours,
   calculateTotalBudget,
   calculateTotalInvoiced,
   isMarginAtRisk,
@@ -37,6 +38,7 @@ import { Card } from "@/components/ui/card";
 import { TrashIcon } from "@/components/ui/icons";
 import { FinancialsSection } from "./financials-section";
 import { ExternalCollaboratorsSection } from "./external-collaborators-section";
+import { InternalCostSection } from "./internal-cost-section";
 import { CashflowSection } from "./cashflow-section";
 import { AuditSection } from "../audit-section";
 import { getProjectAuditLog } from "@/lib/audit";
@@ -60,7 +62,7 @@ export default async function ProjectDetailPage({
     include: {
       manager: true,
       client: true,
-      members: { include: { user: true } },
+      members: { include: { user: true, workRanges: true } },
       timeEntries: { include: { user: true }, orderBy: { date: "desc" } },
       agreement: true,
       additionals: true,
@@ -107,6 +109,19 @@ export default async function ProjectDetailPage({
     ? await prisma.client.findMany({ orderBy: { name: "asc" } })
     : [];
 
+  // Candidatos para matchear nombres del CSV de Odoo (Coste Interno) — no
+  // se limita a los ya asignados al proyecto, porque el CSV puede traer a
+  // alguien que todavía no es miembro (se agrega como ProjectMember recién
+  // al confirmar la importación).
+  const odooCandidates = canManage
+    ? (
+        await prisma.user.findMany({
+          where: { role: Role.COLABORADOR, active: true },
+          orderBy: { name: "asc" },
+        })
+      ).map((u) => ({ id: u.id, name: u.name ?? u.email }))
+    : [];
+
   // Cálculo de rentabilidad — funciones puras de src/lib/financials.ts,
   // portadas del SPA original y con tests propios (financials.test.ts).
   const totalBudget = calculateTotalBudget(
@@ -130,6 +145,15 @@ export default async function ProjectDetailPage({
   const profit = calculateProfit(totalBudget, internalCost, externalCost);
   const profitPercentage = calculateProfitPercentage(profit, totalBudget);
   const atRisk = isMarginAtRisk(profitPercentage);
+
+  // Coste interno: proyectado (rangos) vs real (TimeEntry) por persona —
+  // feedback del gestor, 2026-08-13.
+  const internalCostMembers = project.members.map((m) => ({
+    projectMemberId: m.id,
+    label: m.user.name ?? m.user.email,
+    workRanges: m.workRanges,
+    realHours: calculateRealHours(project.timeEntries.filter((t) => t.userId === m.userId)),
+  }));
 
   const cashflowRows = buildCashflowByMonth({
     plannedInvoices: project.plannedInvoices,
@@ -284,6 +308,15 @@ export default async function ProjectDetailPage({
           projectId={project.id}
           canEdit={canManage}
           collaborators={project.externalCollaborators}
+        />
+      )}
+
+      {canSeeFinancials && (
+        <InternalCostSection
+          projectId={project.id}
+          canEdit={canManage}
+          members={internalCostMembers}
+          candidates={odooCandidates}
         />
       )}
 

@@ -235,9 +235,18 @@ export async function removeProjectMember(formData: FormData) {
 
   const memberToRemove = await prisma.user.findUnique({ where: { id: parsed.data.userId } });
 
-  await prisma.projectMember.deleteMany({
-    where: { projectId: parsed.data.projectId, userId: parsed.data.userId },
-  });
+  // Sin onDelete: Cascade en el schema (mismo criterio que
+  // ExternalCollaborator) — hay que borrar a mano los rangos de horas
+  // proyectadas (Coste Interno) antes, o la FK rechaza el borrado del
+  // ProjectMember con un error crudo de Postgres.
+  await prisma.$transaction([
+    prisma.internalWorkRange.deleteMany({
+      where: { projectMember: { projectId: parsed.data.projectId, userId: parsed.data.userId } },
+    }),
+    prisma.projectMember.deleteMany({
+      where: { projectId: parsed.data.projectId, userId: parsed.data.userId },
+    }),
+  ]);
 
   await logAction({
     userId,

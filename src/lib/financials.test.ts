@@ -8,8 +8,12 @@ import {
   calculatePendingPlanned,
   calculateProfit,
   calculateProfitPercentage,
+  calculateProjectedHours,
+  calculateRangeHours,
+  calculateRealHours,
   calculateTotalBudget,
   calculateTotalInvoiced,
+  isHoursOverProjected,
   isMarginAtRisk,
 } from "./financials";
 
@@ -257,5 +261,76 @@ describe("buildCashflowByMonth", () => {
       externalPayments: [],
     });
     expect(rows[0].label).toBe("Ene 2026");
+  });
+});
+
+describe("calculateRangeHours / calculateProjectedHours", () => {
+  // 2024-01-01 es lunes; 2024-01-05 viernes de la misma semana.
+  const semanaCompleta = {
+    startDate: new Date("2024-01-01T00:00:00.000Z"),
+    endDate: new Date("2024-01-05T00:00:00.000Z"),
+    dedicationPercentage: 100,
+    holidaysCount: 0,
+  };
+
+  it("una semana completa (lun a vie) al 100% son 40 horas", () => {
+    expect(calculateRangeHours(semanaCompleta)).toBe(40);
+  });
+
+  it("aplica el % de dedicación", () => {
+    expect(calculateRangeHours({ ...semanaCompleta, dedicationPercentage: 50 })).toBe(20);
+  });
+
+  it("resta los días festivos indicados", () => {
+    expect(calculateRangeHours({ ...semanaCompleta, holidaysCount: 1 })).toBe(32); // 4 días × 8h
+  });
+
+  it("excluye fines de semana del conteo de días hábiles", () => {
+    const conFinDeSemana = { ...semanaCompleta, endDate: new Date("2024-01-07T00:00:00.000Z") }; // domingo siguiente
+    expect(calculateRangeHours(conFinDeSemana)).toBe(40); // sigue siendo 5 días hábiles
+  });
+
+  it("manualHours pisa el cálculo automático", () => {
+    expect(calculateRangeHours({ ...semanaCompleta, manualHours: 12 })).toBe(12);
+  });
+
+  it("manualHours en 0 no pisa el cálculo (se trata como \"sin override\")", () => {
+    expect(calculateRangeHours({ ...semanaCompleta, manualHours: 0 })).toBe(40);
+  });
+
+  it("suma varios rangos", () => {
+    const segundaSemana = {
+      startDate: new Date("2024-01-08T00:00:00.000Z"),
+      endDate: new Date("2024-01-12T00:00:00.000Z"),
+      dedicationPercentage: 50,
+      holidaysCount: 0,
+    };
+    expect(calculateProjectedHours([semanaCompleta, segundaSemana])).toBe(60); // 40 + 20
+  });
+
+  it("sin rangos, cero horas proyectadas", () => {
+    expect(calculateProjectedHours([])).toBe(0);
+  });
+});
+
+describe("calculateRealHours / isHoursOverProjected", () => {
+  it("suma las horas cargadas", () => {
+    expect(calculateRealHours([{ hours: 8 }, { hours: 4.5 }])).toBe(12.5);
+  });
+
+  it("marca en riesgo si lo real supera lo proyectado", () => {
+    expect(isHoursOverProjected(45, 40)).toBe(true);
+  });
+
+  it("no marca en riesgo si no hay proyección cargada (0)", () => {
+    expect(isHoursOverProjected(45, 0)).toBe(false);
+  });
+
+  it("no marca en riesgo si lo real no supera lo proyectado", () => {
+    expect(isHoursOverProjected(30, 40)).toBe(false);
+  });
+
+  it("no marca en riesgo si son iguales", () => {
+    expect(isHoursOverProjected(40, 40)).toBe(false);
   });
 });
